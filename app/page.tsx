@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/navbar";
 import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, isPending } = useSession();
@@ -85,44 +85,70 @@ export default function Home() {
       <Navbar />
       <main className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="text-center w-full max-w-3xl">
-        <h1 className="text-6xl md:text-7xl font-heading mb-4">lernfa.st</h1>
-        <p className="text-xl md:text-2xl text-foreground/70 mb-12">
-          What do you want to learn today?
-        </p>
-
-        {error && (
-          <div className="mb-6 p-4 border-2 border-red-500 bg-red-50 rounded-base">
-            <p className="text-sm text-red-700 font-base">{error}</p>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            type="text"
-            placeholder="Gib hier das Thema ein, das dich interessiert..."
-            className="h-14 text-lg shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            disabled={isLoading || isPending}
-            autoFocus
-          />
-          <Button
-            type="submit"
-            size="lg"
-            disabled={isLoading || isPending || !topic.trim()}
-            className="w-full md:w-auto"
-          >
-            {isLoading ? "Wird erstellt..." : "Los geht's!"}
-          </Button>
-        </form>
-
-        {!session?.user && !isPending && (
-          <p className="mt-6 text-sm text-foreground/60">
-            Du wirst zur Anmeldung weitergeleitet, wenn du noch kein Konto hast.
+          <h1 className="text-6xl md:text-7xl font-heading mb-4">lernfa.st</h1>
+          <p className="text-xl md:text-2xl text-foreground/70 mb-12">
+            What do you want to learn today?
           </p>
-        )}
+
+          {error && (
+            <div className="mb-6 p-4 border-2 border-red-500 bg-red-50 rounded-base">
+              <p className="text-sm text-red-700 font-base">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              type="text"
+              placeholder="Gib hier das Thema ein, das dich interessiert..."
+              className="h-14 text-lg shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              disabled={isLoading || isPending}
+              autoFocus
+            />
+            <Button
+              type="submit"
+              size="lg"
+              disabled={isLoading || isPending || !topic.trim()}
+              className="w-full md:w-auto"
+            >
+              {isLoading ? "Wird erstellt..." : "Los geht's!"}
+            </Button>
+          </form>
+
+          {!session?.user && !isPending && (
+            <p className="mt-6 text-sm text-foreground/60">
+              Du wirst zur Anmeldung weitergeleitet, wenn du noch kein Konto
+              hast.
+            </p>
+          )}
         </div>
       </main>
     </>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense
+      fallback={
+        <>
+          <Navbar />
+          <main className="min-h-screen flex items-center justify-center bg-background px-4">
+            <div className="text-center w-full max-w-3xl">
+              <h1 className="text-6xl md:text-7xl font-heading mb-4">
+                lernfa.st
+              </h1>
+              <p className="text-xl md:text-2xl text-foreground/70 mb-12">
+                What do you want to learn today?
+              </p>
+              <div className="animate-pulse">Lädt...</div>
+            </div>
+          </main>
+        </>
+      }
+    >
+      <HomeContent />
+    </Suspense>
   );
 }
