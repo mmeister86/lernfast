@@ -3,6 +3,9 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Navbar } from "@/components/navbar";
+import { FeaturesSection } from "@/components/landing/features-section";
+import { Footer } from "@/components/landing/footer";
+import { GradientBackground } from "@/components/landing/gradient-background";
 import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
@@ -83,9 +86,12 @@ function HomeContent() {
   return (
     <>
       <Navbar />
-      <main className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="text-center w-full max-w-3xl">
-          <h1 className="text-6xl md:text-7xl font-heading mb-4">lernfa.st</h1>
+      <main className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+        {/* Gradient Background */}
+        <GradientBackground />
+
+        <div className="text-center w-full max-w-3xl relative z-10">
+          <h1 className="text-6xl md:text-7xl font-heading mb-4">lernfast</h1>
           <p className="text-xl md:text-2xl text-foreground/70 mb-12">
             What do you want to learn today?
           </p>
@@ -124,6 +130,12 @@ function HomeContent() {
           )}
         </div>
       </main>
+
+      {/* Feature Section - nur für nicht-eingeloggte User */}
+      {!session?.user && !isPending && <FeaturesSection />}
+
+      {/* Footer - nur für nicht-eingeloggte User */}
+      {!session?.user && !isPending && <Footer />}
     </>
   );
 }
@@ -137,7 +149,7 @@ export default function Home() {
           <main className="min-h-screen flex items-center justify-center bg-background px-4">
             <div className="text-center w-full max-w-3xl">
               <h1 className="text-6xl md:text-7xl font-heading mb-4">
-                lernfa.st
+                lernfast
               </h1>
               <p className="text-xl md:text-2xl text-foreground/70 mb-12">
                 What do you want to learn today?

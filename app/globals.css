@@ -12,11 +12,11 @@
   --ring: oklch(0% 0 0);
   --overlay: oklch(0% 0 0 / 0.8);
   --shadow: 4px 4px 0px 0px var(--border);
-  --chart-1: #00D696;
-  --chart-2: #FF7A05;
-  --chart-3: #0099FF;
-  --chart-4: #FFBF00;
-  --chart-5: #7A83FF;
+  --chart-1: #00d696;
+  --chart-2: #ff7a05;
+  --chart-3: #0099ff;
+  --chart-4: #ffbf00;
+  --chart-5: #7a83ff;
   --chart-active-dot: #000;
 }
 
@@ -29,11 +29,11 @@
   --border: oklch(0% 0 0);
   --ring: oklch(100% 0 0);
   --shadow: 4px 4px 0px 0px var(--border);
-  --chart-1: #00BD84;
-  --chart-2: #EB6D00;
-  --chart-3: #008AE5;
-  --chart-4: #E5AC00;
-  --chart-5: #7A83FF;
+  --chart-1: #00bd84;
+  --chart-2: #eb6d00;
+  --chart-3: #008ae5;
+  --chart-4: #e5ac00;
+  --chart-5: #7a83ff;
   --chart-active-dot: #fff;
 }
 
@@ -41,14 +41,18 @@
   body {
     @apply text-foreground bg-background;
     font-weight: 500;
-    background-image: radial-gradient(circle, var(--foreground) 1px, transparent 1px);
+    background-image: radial-gradient(
+      circle,
+      var(--foreground) 1px,
+      transparent 1px
+    );
     background-size: 24px 24px;
     background-position: 0 0;
     opacity: 1;
   }
 
   body::before {
-    content: '';
+    content: "";
     position: fixed;
     top: 0;
     left: 0;
@@ -60,7 +64,12 @@
     pointer-events: none;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-weight: 800;
   }
 }
