@@ -69,20 +69,20 @@ export function LessonList({ userId }: LessonListProps) {
       {/* Filter Tabs */}
       <div className="flex gap-3 flex-wrap">
         <Button
-          variant={filter === "all" ? "default" : "outline"}
+          variant={filter === "all" ? "default" : "neutral"}
           onClick={() => setFilter("all")}
         >
           Alle ({lessons.length})
         </Button>
         <Button
-          variant={filter === "completed" ? "default" : "outline"}
+          variant={filter === "completed" ? "default" : "neutral"}
           onClick={() => setFilter("completed")}
         >
           Abgeschlossen (
           {lessons.filter((l) => l.status === "completed").length})
         </Button>
         <Button
-          variant={filter === "processing" ? "default" : "outline"}
+          variant={filter === "processing" ? "default" : "neutral"}
           onClick={() => setFilter("processing")}
         >
           In Bearbeitung (
