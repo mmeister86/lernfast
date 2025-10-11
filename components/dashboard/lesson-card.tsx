@@ -132,11 +132,11 @@ export function LessonCard({ lesson }: LessonCardProps) {
             <Button className="w-full">Flashcards ansehen</Button>
           </Link>
         ) : lesson.status === "failed" ? (
-          <Button variant="outline" className="w-full" disabled>
+          <Button variant="neutral" className="w-full" disabled>
             Erneut versuchen
           </Button>
         ) : (
-          <Button variant="outline" className="w-full" disabled>
+          <Button variant="neutral" className="w-full" disabled>
             Wird erstellt...
           </Button>
         )}
