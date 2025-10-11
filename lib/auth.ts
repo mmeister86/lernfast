@@ -1,9 +1,9 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 import { magicLink } from "better-auth/plugins";
-import { Resend } from "resend";
+import { Unsend } from "unsend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const unsend = new Unsend(process.env.UNSEND_API_KEY!);
 
 // Supabase connection string format:
 // postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres
@@ -20,8 +20,8 @@ export const auth = betterAuth({
     magicLink({
       sendMagicLink: async ({ email, token, url }, request) => {
         try {
-          await resend.emails.send({
-            from: "lernfa.st <onboarding@resend.dev>", // Später ändern zu deiner Domain
+          await unsend.emails.send({
+            from: "noreply@lernfa.st",
             to: email,
             subject: "Dein Magic Link für lernfa.st",
             html: `

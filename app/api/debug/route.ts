@@ -28,9 +28,9 @@ export async function GET() {
     NEXT_PUBLIC_BETTER_AUTH_URL:
       process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "❌ FEHLT",
 
-    // Resend
-    RESEND_API_KEY: process.env.RESEND_API_KEY
-      ? `✅ Gesetzt (${process.env.RESEND_API_KEY.substring(0, 10)}...)`
+    // Unsend
+    UNSEND_API_KEY: process.env.UNSEND_API_KEY
+      ? `✅ Gesetzt (${process.env.UNSEND_API_KEY.substring(0, 10)}...)`
       : "❌ FEHLT",
 
     // Supabase
