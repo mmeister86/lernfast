@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 import { magicLink } from "better-auth/plugins";
+import { emailHarmony } from "better-auth-harmony";
 import { Unsend } from "unsend";
 
 const unsend = new Unsend(process.env.UNSEND_API_KEY!);
@@ -16,7 +17,112 @@ export const auth = betterAuth({
   },
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
+  user: {
+    additionalFields: {
+      age: {
+        type: "number",
+        required: false,
+        input: true, // User kann dieses Feld setzen
+      },
+      language: {
+        type: "string",
+        required: false,
+        defaultValue: "de",
+        input: true,
+      },
+      learningGoals: {
+        type: "string",
+        required: false,
+        input: true,
+      },
+      experienceLevel: {
+        type: "string",
+        required: false,
+        defaultValue: "beginner",
+        input: true,
+      },
+      preferredDifficulty: {
+        type: "string",
+        required: false,
+        defaultValue: "medium",
+        input: true,
+      },
+      preferredCardCount: {
+        type: "number",
+        required: false,
+        defaultValue: 5,
+        input: true,
+      },
+      onboardingCompleted: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+        input: true,
+      },
+      profileUpdatedAt: {
+        type: "date",
+        required: false,
+        input: false, // Wird automatisch vom Trigger gesetzt
+      },
+    },
+    changeEmail: {
+      enabled: true,
+      sendChangeEmailVerification: async ({ user, newEmail, url, token }) => {
+        try {
+          await unsend.emails.send({
+            from: "noreply@lernfa.st",
+            to: user.email, // Bestätigung an alte E-Mail-Adresse
+            subject: "E-Mail-Adresse ändern - Bestätigung erforderlich",
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                <h1 style="color: #000; font-size: 24px; font-weight: 800;">lernfa.st</h1>
+                <p style="font-size: 16px; color: #333;">
+                  Hallo ${user.name || "User"},<br/><br/>
+                  Du möchtest deine E-Mail-Adresse zu <strong>${newEmail}</strong> ändern.
+                </p>
+                <p style="font-size: 16px; color: #333;">
+                  Klicke auf den Button unten, um diese Änderung zu bestätigen:
+                </p>
+                <a
+                  href="${url}"
+                  style="
+                    display: inline-block;
+                    background-color: #000;
+                    color: #fff;
+                    padding: 12px 24px;
+                    text-decoration: none;
+                    border-radius: 15px;
+                    border: 2px solid #000;
+                    box-shadow: 4px 4px 0px #000;
+                    font-weight: 500;
+                    margin: 20px 0;
+                  "
+                >
+                  E-Mail-Änderung bestätigen
+                </a>
+                <p style="font-size: 14px; color: #666;">
+                  Oder kopiere diesen Link in deinen Browser:<br/>
+                  <code style="background: #f4f4f4; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+                    ${url}
+                  </code>
+                </p>
+                <p style="font-size: 12px; color: #999; margin-top: 30px;">
+                  Dieser Link ist 15 Minuten gültig. Falls du diese Änderung nicht angefordert hast, ignoriere diese E-Mail.
+                </p>
+              </div>
+            `,
+          });
+        } catch (error) {
+          console.error("Failed to send email change verification:", error);
+          throw error;
+        }
+      },
+    },
+  },
   plugins: [
+    emailHarmony({
+      allowNormalizedSignin: true, // Erlaubt Login mit normalisierter Email-Variante
+    }),
     magicLink({
       sendMagicLink: async ({ email, token, url }, request) => {
         try {

@@ -1,0 +1,690 @@
+---
+alwaysApply: true
+---
+
+# Lernfa.st Design Rules - Neobrutalism & shadcn/ui
+
+## Neobrutalism Design System (https://www.neobrutalism.dev/)
+
+You are building Lernfa.st with strict neobrutalism design principles. Every component MUST follow these rules.
+
+## Lernfa.st Design Configuration (neobrutalism.dev)
+
+### Border Radius
+
+**ALWAYS use 15px border radius** (NOT rounded-none!)
+
+```css
+--radius-base: 15px;
+```
+
+Apply with Tailwind:
+
+- `rounded-[15px]` for all components
+- Buttons: `rounded-[15px]`
+- Cards: `rounded-[15px]`
+- Inputs: `rounded-[15px]`
+- Modals: `rounded-[15px]`
+
+### Box Shadow (Horizontal & Vertical)
+
+**Standard offset shadow:** 4px horizontal, 4px vertical
+
+```css
+--spacing-boxShadowX: 4px;
+--spacing-boxShadowY: 4px;
+--shadow: 4px 4px 0px 0px var(--border);
+```
+
+Shadow Variations:
+
+- Standard: `shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]`
+- Large: `shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]`
+- XL: `shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]`
+- Hover: `shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]`
+- Active: `shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]`
+
+### Typography Weights
+
+**Heading Font Weight: 800** (extrabold)
+
+```css
+--font-weight-heading: 800;
+```
+
+Apply with:
+
+- `font-extrabold` for h1, h2, h3, h4, h5, h6
+- `text-3xl font-extrabold` for main headings
+- `text-2xl font-extrabold` for section headings
+
+**Base Font Weight: 500** (medium)
+
+```css
+--font-weight-base: 500;
+```
+
+Apply with:
+
+- `font-medium` for body text
+- `text-lg font-medium` for standard text
+- `text-base font-medium` for smaller text
+
+### Core Visual Rules
+
+1. **Border Radius: 15px (NOT rounded-none!)**
+
+   - ALL elements use `rounded-[15px]`
+   - Buttons, cards, inputs, modals - everything rounded at 15px
+   - This creates the softer neobrutalism look
+
+2. **Thick Black Borders**
+
+   - ALL elements use `border-4 border-black`
+   - Combined with rounded corners for signature look
+
+3. **Bold Offset Shadows (4px/4px default)**
+
+   - Standard: `shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]`
+   - NEVER use blur shadows (`shadow-sm`, `shadow-md`, `shadow-lg`)
+
+4. **Interactive Feedback**
+   - Hover: Increase shadow to 6px/6px + translate up/left
+   - Active: Decrease shadow to 2px/2px + translate down/right
+   - Use `transition-all duration-100` for snappy feel
+
+## Lernfa.st Color Palette (Retro Style from neobrutalism.dev)
+
+Based on the retro color palette, use these exact hex values:
+
+### Primary Colors
+
+- **Peach/Orange:** `#FFC667` - Main accent, CTAs, primary actions
+- **Pink:** `#FB7DA8` - Achievements, highlights, special events
+- **Coral/Red:** `#FC5A46` - Warnings, important alerts
+- **Purple:** `#662CB7` - Premium features, advanced content
+- **Teal/Green:** `#00D9BE` - Success states, completed items
+- **Sky Blue:** `#0CBCD7` - Info elements, secondary actions
+
+### Usage Guidelines
+
+```typescript
+// tailwind.config.ts - EXACT colors from retro palette
+colors: {
+  primary: '#FFC667',      // Peach - Main brand color
+  secondary: {
+    pink: '#FB7DA8',       // Achievements, fun elements
+    coral: '#FC5A46',      // Alerts, warnings
+    purple: '#662CB7',     // Premium, advanced
+    teal: '#00D9BE',       // Success, completed
+    blue: '#0CBCD7',       // Info, secondary actions
+  },
+  background: '#FFFFFF',   // White background
+  foreground: '#000000',   // Black text
+  border: '#000000',       // Black borders
+}
+```
+
+### Color Application Rules
+
+- **Primary (Peach #FFC667):** Main CTA buttons, active states, progress bars
+- **Pink (#FB7DA8):** Badges, achievements, streak indicators, fun interactions
+- **Coral (#FC5A46):** Error states, delete actions, warnings
+- **Purple (#662CB7):** Premium tier indicators, special content, advanced features
+- **Teal (#00D9BE):** Success messages, completed themenkomplexe, checkmarks
+- **Blue (#0CBCD7):** Information modals, helper text backgrounds, tooltips
+
+### neobrutalism.dev Global CSS Integration
+
+Add to `app/globals.css`:
+
+```css
+@import "tailwindcss";
+
+:root {
+  /* Lernfa.st Retro Palette */
+  --background: #ffffff;
+  --secondary-background: #f5f5f5;
+  --foreground: #000000;
+  --main: #ffc667; /* Peach primary */
+  --border: #000000;
+  --ring: #000000;
+  --overlay: rgb(0 0 0 / 0.8);
+
+  /* Retro color tokens */
+  --color-peach: #ffc667;
+  --color-pink: #fb7da8;
+  --color-coral: #fc5a46;
+  --color-purple: #662cb7;
+  --color-teal: #00d9be;
+  --color-blue: #0cbcd7;
+
+  /* Shadow system - 4px horizontal, 4px vertical */
+  --shadow: 4px 4px 0px 0px var(--border);
+  --shadow-lg: 8px 8px 0px 0px var(--border);
+  --shadow-xl: 12px 12px 0px 0px var(--border);
+
+  /* Spacing for shadows */
+  --spacing-boxShadowX: 4px;
+  --spacing-boxShadowY: 4px;
+  --spacing-reverseBoxShadowX: -4px;
+  --spacing-reverseBoxShadowY: -4px;
+
+  /* Border radius - 15px for all elements */
+  --radius-base: 15px;
+
+  /* Typography weights */
+  --font-weight-base: 500; /* Medium for body text */
+  --font-weight-heading: 800; /* Extrabold for headings */
+}
+
+@theme inline {
+  --color-main: var(--main);
+  --color-background: var(--background);
+  --color-secondary-background: var(--secondary-background);
+  --color-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-overlay: var(--overlay);
+  --color-ring: var(--ring);
+
+  --color-peach: var(--color-peach);
+  --color-pink: var(--color-pink);
+  --color-coral: var(--color-coral);
+  --color-purple: var(--color-purple);
+  --color-teal: var(--color-teal);
+  --color-blue: var(--color-blue);
+
+  --spacing-boxShadowX: 4px;
+  --spacing-boxShadowY: 4px;
+  --spacing-reverseBoxShadowX: -4px;
+  --spacing-reverseBoxShadowY: -4px;
+
+  --radius-base: 15px;
+
+  --shadow-shadow: var(--shadow);
+
+  --font-weight-base: 500;
+  --font-weight-heading: 800;
+}
+
+@layer base {
+  body {
+    @apply text-foreground font-medium bg-background;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-extrabold;
+  }
+}
+```
+
+```tsx
+<button
+  className="
+  bg-primary text-white font-bold text-lg
+  border-4 border-black
+  shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+  hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]
+  hover:translate-x-[-2px] hover:translate-y-[-2px]
+  active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]
+  active:translate-x-[2px] active:translate-y-[2px]
+  transition-all duration-100
+  px-8 py-4
+"
+>
+  Text
+</button>
+```
+
+#### Card (Default Pattern)
+
+```tsx
+<div
+  className="
+  bg-white p-6
+  border-4 border-black
+  shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
+"
+>
+  Content
+</div>
+```
+
+#### Input (Default Pattern)
+
+```tsx
+<input
+  className="
+  w-full px-4 py-3 text-lg
+  border-4 border-black
+  bg-white
+  focus:outline-none focus:ring-4 focus:ring-primary
+  placeholder:text-gray-400
+"
+/>
+```
+
+#### Modal/Dialog Header
+
+```tsx
+<div className="bg-primary border-b-4 border-black p-6">
+  <h2 className="text-3xl font-bold text-white">Title</h2>
+</div>
+```
+
+#### Progress Bar
+
+```tsx
+<div className="w-full h-8 bg-gray-50 border-4 border-black">
+  <div
+    className="h-full bg-primary border-r-4 border-black"
+    style={{ width: "60%" }}
+  />
+</div>
+```
+
+#### Badge/Tag
+
+```tsx
+<span
+  className="
+  inline-block px-4 py-2 font-bold
+  bg-secondary-yellow text-black
+  border-4 border-black
+  shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+"
+>
+  Label
+</span>
+```
+
+### shadcn/ui Customization Rules
+
+When using shadcn/ui components, ALWAYS customize them to match neobrutalism + retro palette:
+
+1. **Override all shadcn/ui default styles**
+
+   - Replace all rounded corners with `rounded-[15px]`
+   - Replace subtle shadows with offset shadows (4px/4px)
+   - Replace muted colors with retro palette
+   - Add thick black borders (`border-4`)
+   - Use `font-extrabold` for button text
+   - Use `font-medium` for card content
+
+2. **Button Variants (in components/ui/button.tsx)**
+
+```tsx
+const buttonVariants = cva(
+  "inline-flex items-center justify-center font-extrabold border-4 border-black rounded-[15px] transition-all duration-100",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-[#FFC667] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px] active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px]",
+        pink: "bg-[#FB7DA8] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]",
+        teal: "bg-[#00D9BE] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]",
+        purple:
+          "bg-[#662CB7] text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]",
+        outline:
+          "bg-white text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]",
+        coral:
+          "bg-[#FC5A46] text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]",
+      },
+      size: {
+        default: "px-8 py-4 text-lg",
+        sm: "px-4 py-2 text-base",
+        lg: "px-12 py-6 text-xl",
+        icon: "h-12 w-12",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
+```
+
+3. **Card Variants (in components/ui/card.tsx)**
+
+```tsx
+const cardVariants = cva(
+  "border-4 border-black rounded-[15px] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]",
+  {
+    variants: {
+      variant: {
+        default: "bg-white",
+        peach: "bg-[#FFC667] text-black",
+        pink: "bg-[#FB7DA8] text-black",
+        teal: "bg-[#00D9BE] text-black",
+        purple: "bg-[#662CB7] text-white",
+        blue: "bg-[#0CBCD7] text-black",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+);
+```
+
+4. **Input (in components/ui/input.tsx)**
+
+```tsx
+const inputVariants = cva(
+  "flex h-12 w-full border-4 border-black rounded-[15px] bg-white px-4 py-3 text-lg font-medium transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#FFC667] disabled:cursor-not-allowed disabled:opacity-50"
+);
+```
+
+5. **Dialog/Modal (in components/ui/dialog.tsx)**
+
+   - DialogOverlay: `bg-black/80` (solid overlay, no blur)
+   - DialogContent: `border-4 border-black rounded-[15px] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-white`
+   - DialogHeader: `bg-[#FFC667] border-b-4 border-black rounded-t-[15px] p-6`
+   - DialogTitle: `text-3xl font-extrabold text-black`
+
+6. **Badge (in components/ui/badge.tsx)**
+
+```tsx
+const badgeVariants = cva(
+  "inline-flex items-center rounded-[15px] border-4 border-black px-3 py-1 text-sm font-extrabold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
+  {
+    variants: {
+      variant: {
+        default: "bg-[#FFC667] text-black",
+        pink: "bg-[#FB7DA8] text-black",
+        teal: "bg-[#00D9BE] text-black",
+        coral: "bg-[#FC5A46] text-white",
+        purple: "bg-[#662CB7] text-white",
+      },
+    },
+  }
+);
+```
+
+### Color Usage Guidelines (Retro Palette)
+
+- **Peach (#FFC667):** Primary CTAs, main navigation, active states, progress bars, default buttons
+- **Pink (#FB7DA8):** Achievements, badges, fun interactions, gamification elements, streak indicators
+- **Coral (#FC5A46):** Warnings, errors, delete confirmations, critical alerts
+- **Purple (#662CB7):** Premium features, advanced content, special themenkomplexe, exclusive items
+- **Teal (#00D9BE):** Success messages, completed items, positive feedback, checkmarks
+- **Blue (#0CBCD7):** Info tooltips, helper modals, secondary information, hints
+- **Black (#000000):** All text, all borders, icons, emphasis
+- **White (#FFFFFF):** Card backgrounds, input fields, modal backgrounds
+- **Gray-50 (#F5F5F5):** Secondary backgrounds, disabled states (use sparingly)
+
+### Accessibility with Neobrutalism
+
+- High contrast is built-in (black text on white/peach/pink/teal backgrounds)
+- Ensure coral/purple text has sufficient contrast (use white text on these backgrounds)
+- Add ARIA labels to all interactive elements
+- Minimum touch target: 44px × 44px (already met with default button size)
+- Focus states: `focus:ring-4 focus:ring-[#FFC667]` with rounded-[15px]
+- Use semantic HTML (button, nav, main, section, article)
+- Heading hierarchy (h1 → h2 → h3, never skip levels)
+- Alt text for all images and decorative SVGs marked with `aria-hidden="true"`
+
+### Animation Principles
+
+- Keep animations snappy: `duration-100` or `duration-200` max
+- Use translate for hover effects combined with shadow changes
+- Maintain "physical" feel - shadows shrink when pressed, grow on hover
+- Standard hover: `hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]`
+- Standard active: `active:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px]`
+- No complex animations that distract from learning
+- Loading states: Use bold, colorful skeletons with retro palette (not gray)
+
+### Loading Skeleton Example
+
+```tsx
+<div className="bg-gray-50 border-4 border-black rounded-[15px] p-6 animate-pulse">
+  <div className="h-8 bg-[#FFC667] rounded-[15px] w-3/4 mb-4" />
+  <div className="h-6 bg-[#FB7DA8] rounded-[15px] w-1/2 mb-3" />
+  <div className="h-6 bg-[#00D9BE] rounded-[15px] w-full" />
+</div>
+```
+
+### Typography Scale (Always use extrabold for headings, medium for body)
+
+```tsx
+// Headings - ALWAYS font-extrabold
+<h1 className="text-5xl font-extrabold">Hauptüberschrift</h1>
+<h2 className="text-4xl font-extrabold">Seitenüberschrift</h2>
+<h3 className="text-3xl font-extrabold">Sektionsüberschrift</h3>
+<h4 className="text-2xl font-extrabold">Unterüberschrift</h4>
+
+// Body - ALWAYS font-medium
+<p className="text-lg font-medium">Standard Body Text (16px minimum)</p>
+<p className="text-base font-medium">Kleinerer Text</p>
+<p className="text-sm font-medium">Kleine Notizen, Captions</p>
+
+// Special emphasis (still medium weight, use color/size for emphasis)
+<span className="text-lg font-medium text-[#FFC667]">Hervorgehoben</span>
+```
+
+### Spacing & Layout
+
+- Use generous padding: `p-6`, `p-8` for cards
+- Button padding: `px-8 py-4` (default), `px-4 py-2` (small), `px-12 py-6` (large)
+- Gap between elements: `gap-4`, `gap-6`, `gap-8`
+- Margin between sections: `mb-8`, `mb-12`, `mb-16`
+- Container max-width: `max-w-7xl` for main content, `max-w-md` for cards
+- Grid spacing: `grid gap-6` or `grid gap-8`
+
+### Responsive Breakpoints
+
+```tsx
+// Mobile-first approach
+<div className="
+  px-4 py-6           // Mobile
+  md:px-8 md:py-8     // Tablet
+  lg:px-12 lg:py-12   // Desktop
+">
+
+// Grid responsive
+<div className="
+  grid grid-cols-1    // Mobile: 1 column
+  md:grid-cols-2      // Tablet: 2 columns
+  lg:grid-cols-3      // Desktop: 3 columns
+  gap-6
+">
+```
+
+### neobrutalism.dev Component Import
+
+When copying components from https://www.neobrutalism.dev/:
+
+1. Copy component code directly
+2. Replace any color variables with Lernfa.st retro palette hex values
+3. Ensure all text is in German
+4. Verify `rounded-[15px]` is used (not other radius values)
+5. Confirm shadow is `4px 4px` standard
+6. Update font weights: headings to `font-extrabold`, body to `font-medium`
+7. Test on mobile devices (children often use tablets/phones)
+8. Add proper TypeScript types
+
+### Critical Design Checklist
+
+Before committing any component, verify:
+
+- [ ] `rounded-[15px]` on ALL elements (not rounded-none, not other values)
+- [ ] `border-4 border-black` on interactive elements
+- [ ] `shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]` standard shadow
+- [ ] Retro palette colors (Peach, Pink, Coral, Purple, Teal, Blue)
+- [ ] `font-extrabold` for ALL headings (h1-h6)
+- [ ] `font-medium` for ALL body text
+- [ ] Hover effects: increase shadow to 6px + translate
+- [ ] Active effects: decrease shadow to 2px + translate
+- [ ] `transition-all duration-100` for interactions
+- [ ] Minimum 44px height for buttons/clickable elements
+- [ ] Black text on light backgrounds (white/peach/pink/teal)
+- [ ] White text on dark backgrounds (purple/coral)
+- [ ] German language for all user-facing text
+- [ ] ARIA labels for accessibility
+- [ ] Mobile responsive (test at 375px width minimum)
+
+## Summary
+
+Lernfa.st uses neobrutalism.dev design system with specific customizations:
+
+- **15px border radius** (NOT sharp corners)
+- **4px × 4px offset shadows** (NOT blur)
+- **Retro color palette** (Peach primary, Pink/Coral/Purple/Teal/Blue secondary)
+- **Font weight 800** for headings (extrabold)
+- **Font weight 500** for body (medium)
+- **Thick 4px black borders** everywhere
+- **Playful but readable** design for children 10-14 years old
+- **High contrast** for accessibility
+- **Mobile-first** responsive design
+
+Every component must feel bold, confident, and fun while maintaining excellent readability and usability for young learners.
+
+### DO NOT Use
+
+❌ Sharp corners (`rounded-none`) - ALWAYS use `rounded-[15px]`
+❌ Blur shadows (`shadow-sm`, `shadow-lg`) - use offset shadows
+❌ Muted/pastel colors - use vibrant retro palette
+❌ Gradients - use solid colors only
+❌ Thin borders (`border-1`, `border-2`) - use `border-4` minimum
+❌ Gray text on light backgrounds - use black
+❌ `font-bold` for headings - use `font-extrabold` (800)
+❌ `font-normal` for body - use `font-medium` (500)
+❌ Different shadow values than 4px/4px standard
+
+### ALWAYS Use
+
+✅ `rounded-[15px]` for ALL elements (buttons, cards, inputs, modals)
+✅ `border-4 border-black` for borders
+✅ Offset shadows: `shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]` (standard)
+✅ Retro palette colors: Peach, Pink, Coral, Purple, Teal, Blue
+✅ `font-extrabold` (weight 800) for all headings (h1-h6)
+✅ `font-medium` (weight 500) for all body text
+✅ Interactive feedback (hover/active transforms + shadow changes)
+✅ High contrast text (black on white/peach/pink/teal)
+✅ Large touch targets (min 44px height for buttons)
+✅ Snappy transitions (100-200ms duration)-sm`, `shadow-lg`) - use offset shadows
+❌ Muted/pastel colors - use vibrant palette
+❌ Gradients - use solid colors only
+❌ Subtle borders (`border-1`) - use `border-4` minimum
+❌ Gray text on light backgrounds - use black
+❌ Overly complex animations - keep it snappy
+
+### ALWAYS Use
+
+✅ `border-4 border-black` or thicker
+✅ Offset shadows: `shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]`
+✅ Vibrant colors from defined palette
+✅ Bold typography (font-bold, font-extrabold)
+✅ Interactive feedback (hover/active transforms)
+✅ High contrast text (black on white/yellow/turquoise)
+✅ Large touch targets (min 44px)
+✅ Snappy transitions (100-200ms)
+
+### Example: Complete FlashCard Component (15px Radius + Retro)
+
+```tsx
+<div
+  className="
+  relative w-full max-w-md aspect-[3/4]
+  perspective-1000
+"
+>
+  <div
+    className={cn(
+      "relative w-full h-full transition-transform duration-500",
+      isFlipped && "rotate-y-180"
+    )}
+  >
+    {/* Front - White with Peach accent */}
+    <div
+      className="
+      absolute inset-0 backface-hidden
+      bg-white p-8 rounded-[15px]
+      border-4 border-black
+      shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+      flex flex-col
+    "
+    >
+      <p className="text-2xl font-extrabold text-center flex-1 flex items-center justify-center">
+        {card.frontText}
+      </p>
+    </div>
+
+    {/* Back - Teal background */}
+    <div
+      className="
+      absolute inset-0 backface-hidden rotate-y-180
+      bg-[#00D9BE] p-8 rounded-[15px]
+      border-4 border-black
+      shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+      flex items-center justify-center
+    "
+    >
+      <p className="text-xl font-medium text-black text-center">
+        {card.backText}
+      </p>
+    </div>
+  </div>
+
+  {/* Flip Button */}
+  <button
+    onClick={() => setIsFlipped(!isFlipped)}
+    className="
+      absolute -bottom-16 left-1/2 -translate-x-1/2
+      bg-[#FB7DA8] text-black font-extrabold text-lg
+      border-4 border-black rounded-[15px]
+      shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]
+      hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]
+      px-8 py-3
+      transition-all duration-100
+    "
+  >
+    {isFlipped ? "← Zurück" : "Umdrehen →"}
+  </button>
+</div>
+```
+
+### Dashboard Card Examples (15px Radius + Mixed Colors)
+
+```tsx
+// XP Progress Card (Peach)
+<div className="bg-white border-4 border-black rounded-[15px] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6">
+  <h3 className="text-2xl font-extrabold mb-4">Dein Fortschritt</h3>
+  <div className="bg-gray-50 border-4 border-black rounded-[15px] h-12 overflow-hidden">
+    <div className="bg-[#FFC667] h-full flex items-center px-3" style={{width: '75%'}}>
+      <span className="font-extrabold text-black">Level 5 - 750/1000 XP</span>
+    </div>
+  </div>
+</div>
+
+// Streak Card (Pink)
+<div className="bg-[#FB7DA8] border-4 border-black rounded-[15px] shadow-[4px_4px_0px_0px_#662CB7] p-6">
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-sm font-medium text-black">Aktuelle Serie</p>
+      <p className="text-4xl font-extrabold text-black">47 Tage</p>
+    </div>
+    <span className="text-6xl">🔥</span>
+  </div>
+</div>
+
+// Achievement Card (Teal)
+<div className="bg-[#00D9BE] border-4 border-black rounded-[15px] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4">
+  <div className="flex items-center gap-3">
+    <span className="text-3xl">🏆</span>
+    <div>
+      <p className="font-extrabold text-black">Mathe-Meister</p>
+      <p className="text-sm font-medium text-black/80">Alle Mathe-Themen abgeschlossen</p>
+    </div>
+  </div>
+</div>
+```
+
+## Summary
+
+Every pixel must scream neobrutalism: thick borders, bold shadows, vibrant colors, snappy interactions. Make it playful but readable. Make it fun but functional. This is for kids who deserve bold, confident design that

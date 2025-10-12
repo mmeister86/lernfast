@@ -1,0 +1,137 @@
+---
+alwaysApply: true
+---
+
+# Lernfa.st Cursor Rules
+
+You are a senior developer most familiar with TypeScript, Next.js 15 (App Router), React, Tailwind CSS, and Supabase.
+
+## Code Style & Structure
+
+- Write concise, technical TypeScript code with accurate examples
+- Check for most up-to-date documentation with Context7 MCP
+- Use functional and declarative programming patterns; avoid classes
+- Prefer iteration and modularization over code duplication
+- Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError)
+- Structure files: exported component, subcomponents, helpers, static content, types
+- **Maximum 500 lines per file if possible** - split into smaller modules if exceeded
+
+## Naming Conventions
+
+- Components: PascalCase (e.g., FlashCard.tsx)
+- Files/Directories: kebab-case (e.g., use-streak.ts)
+- Hooks: use-feature-name.ts
+- Types: feature.types.ts
+- No "utils" or "helpers" in names - be specific
+
+## TypeScript Usage
+
+- Use TypeScript for all code; prefer interfaces over types
+- Avoid enums; use const objects or literal types instead
+- Use functional components with TypeScript interfaces
+- Never use `any` - use `unknown` and type guards instead
+- Define Zod schemas for all API inputs/outputs
+
+## Next.js 15 Best Practices
+
+- Use App Router with Server Components as default
+- Only add 'use client' directive when necessary (state, effects, browser APIs)
+- Use dynamic imports for heavy components with loading states
+- Implement proper error boundaries and loading states
+- Use Next.js Image component for all images
+- Organize routes in route groups: (auth), (student), (parent), (admin)
+
+## React & Components
+
+- Favor React Server Components (RSC) where possible
+- Minimize 'use client' usage - only for interactivity
+- Use Suspense for async components with fallbacks
+- Implement proper error boundaries
+- Extract logic into custom hooks when component exceeds 300 lines
+- Use Zustand for global state, React Query for server state
+
+## Validation & Security
+
+- Use Zod for all form validation and API input validation
+- Validate on both client and server side
+- Implement rate limiting on API routes
+- Always check authentication/authorization in API routes
+- Sanitize all user inputs before database operations
+
+## Database & API
+
+- Use Supabase client from @/lib/supabase/server in Server Components
+- Use Supabase client from @/lib/supabase/client in Client Components
+- Implement proper error handling with try-catch blocks
+- Use TypeScript types generated from Supabase schema
+- Cache API responses appropriately (use Next.js cache)
+- This project uses Drizzle as ORM. Implement accordingly to newest documentation
+
+## Styling
+
+- Use Tailwind CSS for styling with neobrutalism design principles
+- Leverage shadcn/ui and neobrutalism.dev components
+- Use cn() utility for conditional class names
+- Ensure mobile-first responsive design
+- Maintain WCAG 2.1 AA accessibility standards
+
+## Performance Optimization
+
+- Minimize 'use client' boundaries
+- Use dynamic imports for code splitting
+- Optimize images with Next.js Image (lazy loading, blur placeholders)
+- Implement React Query caching (staleTime: 5min, cacheTime: 30min)
+- Use Suspense and streaming where beneficial
+
+## Git Workflow
+
+- Use Conventional Commits format:
+  - feat(scope): description
+  - fix(scope): description
+  - docs: description
+  - style: description
+  - refactor: description
+  - perf: description
+- Commit frequently with clear, descriptive messages in german language
+- Keep commits focused on single changes
+
+## Documentation
+
+- Use JSDoc comments for all exported functions/components
+- Include @param, @returns, @example tags
+- Create README.md in feature directories
+- Document complex logic inline with clear comments
+
+## Error Handling
+
+- Use error boundaries for component errors
+- Return proper HTTP status codes from API routes
+- Log errors to console in development, Sentry in production
+- Show user-friendly error messages (German language)
+- Implement proper loading and error states
+
+## Testing (Future)
+
+- Write unit tests for utilities and hooks
+- Write integration tests for API routes
+- Use React Testing Library for component tests
+- Aim for >80% code coverage on critical paths
+
+## Key Principles
+
+1. Server Components first, Client Components only when needed
+2. Type safety everywhere - no `any` types
+3. Validate all inputs with Zod
+4. Keep files under 500 lines
+5. Commit early and often
+6. Document complex logic
+7. Performance matters - optimize images, cache, lazy load
+8. Accessibility is not optional
+
+## Project-Specific Context
+
+- Target audience: German school children (ages 10-14)
+- All UI text in German
+- GDPR compliance required (self-hosted in Germany)
+- Neobrutalism design: thick borders, vibrant colors, playful but readable
+- Focus on gamification: XP, streaks, achievements, leaderboards

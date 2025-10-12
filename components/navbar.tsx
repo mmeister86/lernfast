@@ -93,6 +93,12 @@ export function Navbar() {
                 </Link>
               </DropdownMenuItem>
 
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/profile" className="cursor-pointer">
+                  Profil bearbeiten
+                </Link>
+              </DropdownMenuItem>
+
               <DropdownMenuSeparator />
 
               <DropdownMenuItem
