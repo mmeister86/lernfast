@@ -1,35 +1,41 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { signIn, signUp } from "@/lib/auth-client"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { signIn, signUp } from "@/lib/auth-client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function AuthPage() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setError(null)
-    setSuccess(null)
-    setIsLoading(true)
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setIsLoading(true);
 
-    const formData = new FormData(e.currentTarget)
-    const email = formData.get("email") as string
-    const password = formData.get("password") as string
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
 
     // Client-seitige Validierung
     if (!email || !password) {
-      setError("Bitte fülle alle Felder aus.")
-      setIsLoading(false)
-      return
+      setError("Bitte fülle alle Felder aus.");
+      setIsLoading(false);
+      return;
     }
 
     try {
@@ -37,164 +43,170 @@ export default function AuthPage() {
       const result = await signIn.email({
         email,
         password,
-      })
+      });
 
       if (result.error) {
-        setError("Anmeldung fehlgeschlagen. Überprüfe deine Zugangsdaten.")
-        setIsLoading(false)
-        return
+        setError("Anmeldung fehlgeschlagen. Überprüfe deine Zugangsdaten.");
+        setIsLoading(false);
+        return;
       }
 
-      setSuccess("Anmeldung erfolgreich! Du wirst weitergeleitet...")
+      setSuccess("Anmeldung erfolgreich! Du wirst weitergeleitet...");
 
       // Prüfe ob ein Topic gespeichert wurde (von Landing Page)
-      const pendingTopic = sessionStorage.getItem("pendingTopic")
+      const pendingTopic = sessionStorage.getItem("pendingTopic");
 
       setTimeout(() => {
         if (pendingTopic) {
           // Lösche das gespeicherte Topic
-          sessionStorage.removeItem("pendingTopic")
+          sessionStorage.removeItem("pendingTopic");
           // Redirect zurück zur Landing Page (die dann automatisch den KI-Flow startet)
-          router.push(`/?topic=${encodeURIComponent(pendingTopic)}`)
+          router.push(`/?topic=${encodeURIComponent(pendingTopic)}`);
         } else {
           // Normale Weiterleitung zur Startseite
-          router.push("/")
+          router.push("/");
         }
-        router.refresh()
-      }, 1000)
+        router.refresh();
+      }, 1000);
     } catch (err) {
-      console.error("Login error:", err)
-      setError("Ein unerwarteter Fehler ist aufgetreten.")
-      setIsLoading(false)
+      console.error("Login error:", err);
+      setError("Ein unerwarteter Fehler ist aufgetreten.");
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleMagicLink = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setError(null)
-    setSuccess(null)
-    setIsLoading(true)
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setIsLoading(true);
 
-    const formData = new FormData(e.currentTarget)
-    const email = formData.get("email") as string
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
 
     // Client-seitige Validierung
     if (!email) {
-      setError("Bitte gib deine E-Mail-Adresse ein.")
-      setIsLoading(false)
-      return
+      setError("Bitte gib deine E-Mail-Adresse ein.");
+      setIsLoading(false);
+      return;
     }
 
     // E-Mail-Format validieren
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setError("Bitte gib eine gültige E-Mail-Adresse ein.")
-      setIsLoading(false)
-      return
+      setError("Bitte gib eine gültige E-Mail-Adresse ein.");
+      setIsLoading(false);
+      return;
     }
 
     try {
       // Prüfe ob ein Topic gespeichert wurde (von Landing Page)
-      const pendingTopic = sessionStorage.getItem("pendingTopic")
+      const pendingTopic = sessionStorage.getItem("pendingTopic");
       const callbackURL = pendingTopic
         ? `/?topic=${encodeURIComponent(pendingTopic)}`
-        : "/"
+        : "/";
 
       const result = await signIn.magicLink({
         email,
         callbackURL,
-      })
+      });
 
       if (result.error) {
-        setError("Fehler beim Senden des Magic Links. Bitte versuche es erneut.")
-        setIsLoading(false)
-        return
+        setError(
+          "Fehler beim Senden des Magic Links. Bitte versuche es erneut."
+        );
+        setIsLoading(false);
+        return;
       }
 
-      setSuccess("Magic Link wurde gesendet! Prüfe deine E-Mails.")
-      setIsLoading(false)
+      setSuccess("Magic Link wurde gesendet! Prüfe deine E-Mails.");
+      setIsLoading(false);
     } catch (err) {
-      console.error("Magic Link error:", err)
-      setError("Ein unerwarteter Fehler ist aufgetreten.")
-      setIsLoading(false)
+      console.error("Magic Link error:", err);
+      setError("Ein unerwarteter Fehler ist aufgetreten.");
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setError(null)
-    setSuccess(null)
-    setIsLoading(true)
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setIsLoading(true);
 
-    const formData = new FormData(e.currentTarget)
-    const email = formData.get("email") as string
-    const password = formData.get("password") as string
-    const passwordConfirm = formData.get("passwordConfirm") as string
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+    const passwordConfirm = formData.get("passwordConfirm") as string;
 
     // Client-seitige Validierung
     if (!email || !password || !passwordConfirm) {
-      setError("Bitte fülle alle Felder aus.")
-      setIsLoading(false)
-      return
+      setError("Bitte fülle alle Felder aus.");
+      setIsLoading(false);
+      return;
     }
 
     if (password !== passwordConfirm) {
-      setError("Die Passwörter stimmen nicht überein.")
-      setIsLoading(false)
-      return
+      setError("Die Passwörter stimmen nicht überein.");
+      setIsLoading(false);
+      return;
     }
 
     if (password.length < 8) {
-      setError("Das Passwort muss mindestens 8 Zeichen lang sein.")
-      setIsLoading(false)
-      return
+      setError("Das Passwort muss mindestens 8 Zeichen lang sein.");
+      setIsLoading(false);
+      return;
     }
 
     // E-Mail-Format validieren
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setError("Bitte gib eine gültige E-Mail-Adresse ein.")
-      setIsLoading(false)
-      return
+      setError("Bitte gib eine gültige E-Mail-Adresse ein.");
+      setIsLoading(false);
+      return;
     }
 
     try {
       // Better-Auth signUp - DATABASE_URL wird nur serverseitig verwendet
+      // Profilfelder sind alle optional und werden später im Onboarding gesetzt
       const result = await signUp.email({
         email,
         password,
         name: email.split("@")[0], // Optional: Name aus E-Mail ableiten
-      })
+      } as any); // Type assertion da Better-Auth Types manchmal zu strikt sind
 
       if (result.error) {
-        setError(result.error.message || "Registrierung fehlgeschlagen. Möglicherweise existiert das Konto bereits.")
-        setIsLoading(false)
-        return
+        setError(
+          result.error.message ||
+            "Registrierung fehlgeschlagen. Möglicherweise existiert das Konto bereits."
+        );
+        setIsLoading(false);
+        return;
       }
 
-      setSuccess("Registrierung erfolgreich! Du wirst eingeloggt...")
+      setSuccess("Registrierung erfolgreich! Du wirst eingeloggt...");
 
       // Prüfe ob ein Topic gespeichert wurde (von Landing Page)
-      const pendingTopic = sessionStorage.getItem("pendingTopic")
+      const pendingTopic = sessionStorage.getItem("pendingTopic");
 
       setTimeout(() => {
         if (pendingTopic) {
           // Lösche das gespeicherte Topic
-          sessionStorage.removeItem("pendingTopic")
+          sessionStorage.removeItem("pendingTopic");
           // Redirect zurück zur Landing Page (die dann automatisch den KI-Flow startet)
-          router.push(`/?topic=${encodeURIComponent(pendingTopic)}`)
+          router.push(`/?topic=${encodeURIComponent(pendingTopic)}`);
         } else {
           // Normale Weiterleitung zur Startseite
-          router.push("/")
+          router.push("/");
         }
-        router.refresh()
-      }, 1000)
+        router.refresh();
+      }, 1000);
     } catch (err) {
-      console.error("Registration error:", err)
-      setError("Ein unerwarteter Fehler ist aufgetreten.")
-      setIsLoading(false)
+      console.error("Registration error:", err);
+      setError("Ein unerwarteter Fehler ist aufgetreten.");
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -238,7 +250,10 @@ export default function AuthPage() {
               <CardContent>
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
-                    <label htmlFor="login-email" className="text-sm font-heading">
+                    <label
+                      htmlFor="login-email"
+                      className="text-sm font-heading"
+                    >
                       E-Mail
                     </label>
                     <Input
@@ -252,7 +267,10 @@ export default function AuthPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="login-password" className="text-sm font-heading">
+                    <label
+                      htmlFor="login-password"
+                      className="text-sm font-heading"
+                    >
                       Passwort
                     </label>
                     <Input
@@ -298,7 +316,10 @@ export default function AuthPage() {
               <CardContent>
                 <form onSubmit={handleMagicLink} className="space-y-4">
                   <div className="space-y-2">
-                    <label htmlFor="magic-link-email" className="text-sm font-heading">
+                    <label
+                      htmlFor="magic-link-email"
+                      className="text-sm font-heading"
+                    >
                       E-Mail
                     </label>
                     <Input
@@ -320,7 +341,8 @@ export default function AuthPage() {
                     {isLoading ? "Wird gesendet..." : "Magic Link senden"}
                   </Button>
                   <p className="text-xs text-center text-foreground/60">
-                    Der Link ist 15 Minuten gültig und kann nur einmal verwendet werden.
+                    Der Link ist 15 Minuten gültig und kann nur einmal verwendet
+                    werden.
                   </p>
                 </form>
               </CardContent>
@@ -338,7 +360,10 @@ export default function AuthPage() {
               <CardContent>
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-2">
-                    <label htmlFor="register-email" className="text-sm font-heading">
+                    <label
+                      htmlFor="register-email"
+                      className="text-sm font-heading"
+                    >
                       E-Mail
                     </label>
                     <Input
@@ -352,7 +377,10 @@ export default function AuthPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="register-password" className="text-sm font-heading">
+                    <label
+                      htmlFor="register-password"
+                      className="text-sm font-heading"
+                    >
                       Passwort
                     </label>
                     <Input
@@ -367,7 +395,10 @@ export default function AuthPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="register-password-confirm" className="text-sm font-heading">
+                    <label
+                      htmlFor="register-password-confirm"
+                      className="text-sm font-heading"
+                    >
                       Passwort bestätigen
                     </label>
                     <Input
@@ -391,7 +422,10 @@ export default function AuthPage() {
                   </Button>
                   <p className="text-xs text-center text-foreground/60">
                     Mit der Registrierung stimmst du unseren{" "}
-                    <button type="button" className="underline hover:text-foreground">
+                    <button
+                      type="button"
+                      className="underline hover:text-foreground"
+                    >
                       Nutzungsbedingungen
                     </button>{" "}
                     zu.
@@ -403,5 +437,5 @@ export default function AuthPage() {
         </Tabs>
       </div>
     </main>
-  )
+  );
 }
