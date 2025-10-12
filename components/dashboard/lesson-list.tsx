@@ -10,7 +10,10 @@ type LessonListProps = {
   error: string | null;
 };
 
-export function LessonList({ lessons: initialLessons, error }: LessonListProps) {
+export function LessonList({
+  lessons: initialLessons,
+  error,
+}: LessonListProps) {
   const [lessons, setLessons] = useState<LessonWithCount[]>(initialLessons);
   const [filter, setFilter] = useState<"all" | "completed" | "processing">(
     "all"
@@ -105,16 +108,18 @@ export function LessonList({ lessons: initialLessons, error }: LessonListProps) 
           <p className="text-base font-medium text-foreground/70">
             {filter === "all"
               ? "Erstelle deine erste Lesson auf der Startseite!"
-              : `Keine ${filter === "completed" ? "abgeschlossenen" : "aktiven"} Lessons vorhanden.`}
+              : `Keine ${
+                  filter === "completed" ? "abgeschlossenen" : "aktiven"
+                } Lessons vorhanden.`}
           </p>
         </div>
       ) : (
         /* Lessons Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredLessons.map((lesson) => (
-            <LessonCard 
-              key={lesson.id} 
-              lesson={lesson} 
+            <LessonCard
+              key={lesson.id}
+              lesson={lesson}
               onDelete={handleDelete}
             />
           ))}

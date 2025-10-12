@@ -24,7 +24,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
-import type { LessonStatus, LessonType, LessonWithCount } from "@/lib/lesson.types";
+import type {
+  LessonStatus,
+  LessonType,
+  LessonWithCount,
+} from "@/lib/lesson.types";
 
 type LessonCardProps = {
   lesson: LessonWithCount;
@@ -77,7 +81,7 @@ export function LessonCard({ lesson, onDelete }: LessonCardProps) {
 
   const handleDelete = async () => {
     if (!onDelete) return;
-    
+
     setIsDeleting(true);
     try {
       await onDelete(lesson.id);
@@ -156,13 +160,13 @@ export function LessonCard({ lesson, onDelete }: LessonCardProps) {
             Wird erstellt...
           </Button>
         )}
-        
+
         {/* Delete Button mit AlertDialog */}
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button 
-              variant="coral" 
-              size="icon" 
+            <Button
+              variant="coral"
+              size="icon"
               disabled={isDeleting}
               className="shrink-0"
             >
@@ -173,18 +177,15 @@ export function LessonCard({ lesson, onDelete }: LessonCardProps) {
             <AlertDialogHeader>
               <AlertDialogTitle>Lerninhalt löschen?</AlertDialogTitle>
               <AlertDialogDescription>
-                Diese Aktion kann nicht rückgängig gemacht werden. 
-                Alle Flashcards dieser Lerneinheit werden ebenfalls gelöscht.
+                Diese Aktion kann nicht rückgängig gemacht werden. Alle
+                Flashcards dieser Lerneinheit werden ebenfalls gelöscht.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={isDeleting}>
                 Abbrechen
               </AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={handleDelete}
-                disabled={isDeleting}
-              >
+              <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
                 {isDeleting ? "Wird gelöscht..." : "Löschen"}
               </AlertDialogAction>
             </AlertDialogFooter>

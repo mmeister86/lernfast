@@ -21,14 +21,55 @@ export interface Lesson {
 }
 
 /**
+ * Visualisierungstypen für Flashcards
+ */
+export type VisualizationType = "thesys" | "mermaid";
+
+/**
+ * Mermaid Diagramm-Typen
+ */
+export type MermaidDiagramType =
+  | "flowchart"
+  | "mindmap"
+  | "sequence"
+  | "class"
+  | "state"
+  | "er"
+  | "gantt"
+  | "pie"
+  | "quadrant"
+  | "timeline";
+
+/**
+ * Mermaid Visualisierung mit Code und optional gecachtem SVG
+ */
+export interface MermaidVisualization {
+  diagramType: MermaidDiagramType;
+  code: string; // Mermaid syntax code
+  svg?: string; // Serverseitig generiertes SVG (optional cached)
+}
+
+/**
+ * Generische Visualisierung - kann entweder Thesys oder Mermaid sein
+ */
+export interface Visualization {
+  type: VisualizationType;
+  data: ThesysJSON | MermaidVisualization;
+}
+
+/**
  * Flashcard Entity (Einzelne Lernkarte)
  * Gehört zu einer Lesson
+ *
+ * MIGRATION NOTE: Alte Flashcards haben `thesys_json`, neue haben `visualizations`
+ * Beide Felder werden während der Übergangsphase unterstützt
  */
 export interface Flashcard {
   id: string;
   lesson_id: string;
   question: string;
-  thesys_json: ThesysJSON | null;
+  thesys_json?: ThesysJSON | null; // Legacy field - wird bald entfernt
+  visualizations?: Visualization[]; // Neues Feld - Array von Visualisierungen
   is_learned: boolean;
   created_at: string; // ISO 8601 timestamp string von Supabase
 }
@@ -76,4 +117,3 @@ export interface LessonWithCount extends Lesson {
 export interface LessonWithFlashcards extends Lesson {
   flashcard: Flashcard[];
 }
-

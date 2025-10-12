@@ -90,3 +90,32 @@
     font-weight: 800;
   }
 }
+
+/* Neobrutalismus-Styling für Mermaid-Diagramme */
+/* Wird im Container .mermaid-container angewendet */
+@layer components {
+  .mermaid-container {
+    @apply w-full;
+  }
+
+  /* SVG Container Styling - bereits im render-mermaid API angewendet, hier als Backup */
+  .mermaid-container svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Mermaid Node Text Styling */
+  .mermaid-container .nodeLabel,
+  .mermaid-container .edgeLabel,
+  .mermaid-container text {
+    font-family: inherit !important;
+    font-weight: 800 !important;
+  }
+
+  /* Responsive Anpassungen für mobile Geräte */
+  @media (max-width: 640px) {
+    .mermaid-container svg {
+      font-size: 12px !important;
+    }
+  }
+}

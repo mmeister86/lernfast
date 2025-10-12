@@ -5,10 +5,10 @@ import { createServiceClient } from "@/lib/supabase/server";
 
 /**
  * DELETE Lesson API Route
- * 
+ *
  * Löscht eine Lerneinheit und alle zugehörigen Flashcards (CASCADE DELETE).
  * Nur der Owner der Lesson kann diese löschen.
- * 
+ *
  * @param request - Request mit lessonId im Body
  * @returns JSON Response mit success oder error
  */
@@ -72,7 +72,9 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log(`Lesson ${lessonId} successfully deleted by user ${session.user.id}`);
+    console.log(
+      `Lesson ${lessonId} successfully deleted by user ${session.user.id}`
+    );
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Unexpected error in delete route:", error);
@@ -82,4 +84,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

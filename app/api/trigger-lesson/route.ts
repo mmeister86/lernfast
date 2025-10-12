@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { sanitizeMermaidCode } from "@/lib/utils";
 import OpenAI from "openai";
 
 /**
@@ -108,36 +109,99 @@ export async function POST(request: NextRequest) {
       // OpenAI Client initialisieren
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-      // Prompt Engineering für Thesys/C1-Format
-      const systemPrompt = `Du bist ein Experte für didaktisch aufbereitete Lernkarten.
-Erstelle 3-5 Lernkarten zum angegebenen Thema im Thesys/C1-JSON-Format.
+      // Prompt Engineering für intelligente Visualisierungs-Auswahl
+      const systemPrompt = `Du bist ein Experte für didaktisch aufbereitete Lernkarten mit intelligenter Visualisierungs-Auswahl.
 
-Jede Karte muss folgende Struktur haben:
+Erstelle 3-5 Lernkarten zum angegebenen Thema. Für jede Karte entscheide intelligent, welche Visualisierung am besten passt:
+
+**Visualisierungs-Richtlinien:**
+
+1. **Thesys (Concept Maps)** - Für konzeptionelle Zusammenhänge:
+   - Abstrakte Begriffe und Definitionen
+   - Hierarchische Wissensstrukturen
+   - Beziehungen zwischen Konzepten
+   - Beispiel: "Was ist Machine Learning?" → Nodes für Konzepte wie "Supervised", "Unsupervised"
+
+2. **Mermaid Flowchart** - Für Prozesse und Abläufe:
+   - Schritt-für-Schritt Anleitungen
+   - Algorithmen und Entscheidungsbäume
+   - Workflows und Pipelines
+   - Beispiel: "HTTP Request Lifecycle" → Flowchart mit Request → Server → Response
+
+3. **Mermaid Mindmap** - Für Themenübersichten:
+   - Brainstorming-Strukturen
+   - Themencluster
+   - Kategorisierungen
+   - Beispiel: "JavaScript Frameworks" → Zentrum "JS", Äste "React", "Vue", "Angular"
+
+4. **Mermaid Sequence** - Für Interaktionen:
+   - API-Kommunikation
+   - Zeitliche Abläufe zwischen Akteuren
+   - Message Passing
+   - Beispiel: "OAuth Flow" → User → App → Auth Server → App → User
+
+5. **Mermaid Class/ER** - Für Strukturen:
+   - Datenmodelle
+   - OOP-Klassendiagramme
+   - Datenbankschemas
+   - Beispiel: "E-Commerce DB Schema" → User --|> Order --|> Product
+
+6. **Beide (Thesys + Mermaid)** - Für komplexe Themen:
+   - Thesys für Konzepte + Flowchart für Prozess
+   - Beispiel: "REST API Design" → Thesys (Prinzipien) + Flowchart (Request Handling)
+
+**Output Format (JSON):**
 {
   "cards": [
     {
-      "question": "Prägnante Frage zum Konzept",
-      "thesys_json": {
-        "nodes": [
-          { "id": "1", "label": "Hauptkonzept", "type": "concept" },
-          { "id": "2", "label": "Detail 1", "type": "detail" }
-        ],
-        "edges": [
-          { "from": "1", "to": "2", "label": "erklärt durch" }
-        ],
-        "layout": "hierarchical"
-      }
+      "question": "Wie funktioniert ein HTTP Request?",
+      "visualizations": [
+        {
+          "type": "mermaid",
+          "data": {
+            "diagramType": "flowchart",
+            "code": "flowchart TD\\n  A[Client] --> B[DNS Lookup]\\n  B --> C[TCP Connection]\\n  C --> D[HTTP Request]\\n  D --> E[Server Processing]\\n  E --> F[HTTP Response]"
+          }
+        }
+      ]
+    },
+    {
+      "question": "Was sind die REST Prinzipien?",
+      "visualizations": [
+        {
+          "type": "thesys",
+          "data": {
+            "nodes": [
+              { "id": "1", "label": "REST", "type": "concept" },
+              { "id": "2", "label": "Stateless", "type": "detail" },
+              { "id": "3", "label": "Cacheable", "type": "detail" }
+            ],
+            "edges": [
+              { "from": "1", "to": "2", "label": "erfordert" },
+              { "from": "1", "to": "3", "label": "unterstützt" }
+            ],
+            "layout": "hierarchical"
+          }
+        }
+      ]
     }
   ]
 }
 
-Wichtige Regeln:
-- Verwende deutsche Sprache für alle Inhalte
-- Erstelle aussagekräftige Fragen die zum Lernen anregen
-- Nodes sollten Konzepte, Details und Beispiele enthalten
-- Edges sollten logische Beziehungen zwischen Konzepten zeigen
-- Verwende verschiedene Node-Types: "concept", "detail", "example", "definition"
-- Layout sollte "hierarchical" oder "force-directed" sein`;
+**Wichtige Regeln:**
+- Verwende IMMER deutsche Sprache für Fragen und Labels
+- Mermaid Code MUSS valide Syntax haben (keine Tippfehler!)
+- Newlines in Mermaid Code als \\n schreiben (escaped!)
+- Mindestens 1 Visualisierung pro Karte, maximal 2 (Thesys + Mermaid)
+- Wähle die Visualisierung basierend auf dem Lerninhalt intelligent aus
+- Bei Prozessen: Flowchart, bei Konzepten: Thesys, bei Interaktionen: Sequence
+
+**Mermaid Syntax-Regeln (KRITISCH):**
+- IMMER Anführungszeichen um Node-Labels setzen: A["Label mit Text"]
+- Besonders bei Sonderzeichen: Klammern (), Bindestriche -, Doppelpunkte :, Kommata ,
+- Beispiel FALSCH: A --> B[Next.js (React)]
+- Beispiel RICHTIG: A --> B["Next.js (React)"]
+- Auch bei einfachen Labels sicher: A["Start"] --> B["Ende"]`;
 
       // OpenAI API Call
       const completion = await openai.chat.completions.create({
@@ -158,12 +222,31 @@ Wichtige Regeln:
         throw new Error("Ungültiges OpenAI Response Format");
       }
 
-      // Flashcards in Supabase speichern
-      const flashcardInserts = flashcardsData.cards.map((card: any) => ({
-        lesson_id: lesson.id,
-        question: card.question,
-        thesys_json: card.thesys_json,
-      }));
+      // Verarbeite jede Flashcard und speichere Visualisierungen
+      // Mermaid-Code wird clientseitig gerendert (kein serverseitiges SVG mehr)
+      const flashcardInserts = flashcardsData.cards.map((card: any) => {
+        // Sanitize alle Mermaid-Visualisierungen
+        const sanitizedVisualizations = (card.visualizations || []).map(
+          (viz: any) => {
+            if (viz.type === "mermaid" && viz.data?.code) {
+              return {
+                ...viz,
+                data: {
+                  ...viz.data,
+                  code: sanitizeMermaidCode(viz.data.code),
+                },
+              };
+            }
+            return viz;
+          }
+        );
+
+        return {
+          lesson_id: lesson.id,
+          question: card.question,
+          visualizations: sanitizedVisualizations,
+        };
+      });
 
       const { error: flashcardError } = await supabase
         .from("flashcard")

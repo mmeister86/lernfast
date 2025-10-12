@@ -36,7 +36,7 @@
 | **Better-Auth**         | E-Mail/Passwort + Magic Link Auth                                   | ✅ Vollständig implementiert |
 | **Better-Auth-Harmony** | Email-Normalisierung + Validierung (55k+ Wegwerf-Domains blockiert) | ✅ Implementiert             |
 | **Resend**              | Transaktionale E-Mails (Magic Links)                                | ✅ Implementiert             |
-| **n8n**                 | KI-Workflow-Orchestrierung (Webhook-basiert)                        | ❌ Noch nicht implementiert  |
+| **OpenAI / LLM API**    | KI-Generierung von Flashcards (direkt im Backend)                   | ✅ Implementiert             |
 | **Stripe**              | Zahlungen & Abonnements                                             | ❌ Geplant (Phase 2)         |
 | **Upstash Redis**       | Rate Limiting für Free-Tier                                         | ❌ Geplant (Phase 2)         |
 
@@ -49,7 +49,7 @@
 
 ## Datenbank-Schema (Supabase PostgreSQL)
 
-**Status:** ✅ Better-Auth Tabellen migriert | ⚠️ App-Tabellen (lesson/flashcard) noch ausstehend
+**Status:** ✅ Vollständig migriert (Better-Auth + App-Tabellen: lesson, flashcard, payment_subscription)
 
 ### Better-Auth Tabellen (✅ Erstellt)
 
@@ -118,7 +118,7 @@ created_at TIMESTAMP DEFAULT NOW()
 updated_at TIMESTAMP DEFAULT NOW()
 ```
 
-### App-Tabellen (⚠️ Noch zu migrieren)
+### App-Tabellen (✅ Erstellt)
 
 #### Tabelle: `lesson` (Lerneinheit)
 
@@ -138,9 +138,33 @@ completed_at TIMESTAMP
 id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 lesson_id UUID REFERENCES lesson(id) ON DELETE CASCADE
 question TEXT NOT NULL
-thesys_json JSONB -- Strukturierter JSON-Output für Thesys/C1 Visualisierung
+thesys_json JSONB -- LEGACY: Strukturierter JSON-Output für Thesys/C1 Visualisierung
+visualizations JSONB DEFAULT '[]'::jsonb -- NEU: Array von Visualisierungen (Thesys + Mermaid)
 is_learned BOOLEAN DEFAULT FALSE
 created_at TIMESTAMP DEFAULT NOW()
+```
+
+**Visualizations-Struktur (JSONB Array):**
+
+```json
+[
+  {
+    "type": "thesys",
+    "data": {
+      "nodes": [...],
+      "edges": [...],
+      "layout": "hierarchical"
+    }
+  },
+  {
+    "type": "mermaid",
+    "data": {
+      "diagramType": "flowchart",
+      "code": "flowchart TD\n  A --> B",
+      "svg": "<svg>...</svg>"  // Optional: Gecachtes SVG
+    }
+  }
+]
 ```
 
 #### Tabelle: `payment_subscription` (Phase 2)
@@ -164,11 +188,17 @@ lernfast/
 ├── app/
 │   ├── api/
 │   │   ├── auth/[...all]/route.ts    # ✅ Better-Auth Handler
-│   │   └── trigger-lesson/           # ❌ TODO: n8n Webhook Trigger
+│   │   ├── trigger-lesson/route.ts   # ✅ KI-Generierung mit intelligenter Visualisierungs-Auswahl
+│   │   ├── render-mermaid/route.ts   # ✅ Serverseitiges Mermaid SVG-Rendering
+│   │   ├── flashcard/
+│   │   │   └── mark-learned/route.ts # ✅ Flashcard als gelernt markieren
+│   │   └── profile/update/route.ts   # ✅ Profil-Update API
 │   ├── auth/
 │   │   └── page.tsx                  # ✅ Auth UI (Login/Register/Magic Link)
-│   ├── dashboard/                    # ❌ TODO: User Dashboard
-│   ├── lesson/[id]/                  # ❌ TODO: Flashcard Viewer
+│   ├── dashboard/
+│   │   ├── page.tsx                  # ✅ User Dashboard
+│   │   └── profile/page.tsx          # ✅ Profil-Seite
+│   ├── lesson/[id]/page.tsx          # ✅ Flashcard Viewer
 │   ├── page.tsx                      # ✅ Landing Page mit Input + Navbar
 │   ├── layout.tsx                    # ✅ Root Layout
 │   └── globals.css                   # ✅ Neobrutalismus CSS Variables
@@ -179,11 +209,17 @@ lernfast/
 │   │   ├── button.tsx
 │   │   ├── card.tsx
 │   │   ├── tabs.tsx
-│   │   ├── avatar.tsx               # ✅ Avatar Component
-│   │   └── dropdown-menu.tsx        # ✅ Dropdown Menu Component
+│   │   ├── avatar.tsx
+│   │   ├── dropdown-menu.tsx
+│   │   └── hamster-spinner.tsx       # ✅ Loading Animation
 │   ├── navbar.tsx                    # ✅ Transparente Navbar mit Avatar
-│   ├── flashcard/                    # ❌ TODO: Flashcard-Komponente
-│   └── dashboard/                    # ❌ TODO: Dashboard-Komponenten
+│   ├── loading-modal.tsx             # ✅ Loading Modal für KI-Generierung
+│   ├── flashcard/                    # ✅ Flashcard-Komponenten
+│   │   ├── flashcard.tsx
+│   │   └── flashcard-viewer.tsx
+│   └── dashboard/                    # ✅ Dashboard-Komponenten
+│       ├── lesson-list.tsx
+│       └── lesson-card.tsx
 │
 ├── lib/
 │   ├── auth.ts                       # ✅ Better-Auth Server (Magic Link + Email/Password)
@@ -192,9 +228,11 @@ lernfast/
 │   │   ├── client.ts
 │   │   ├── server.ts
 │   │   └── middleware.ts
+│   ├── lesson.types.ts               # ✅ TypeScript Types für Lessons
+│   ├── profile.types.ts              # ✅ TypeScript Types für Profile
 │   └── utils.ts                      # ✅ Utility-Funktionen (cn, etc.)
 │
-├── supabase-migration.sql            # ✅ Datenbank-Migration (App-Tabellen)
+├── supabase/migrations/              # ✅ Datenbank-Migrationen
 ├── masterplan.md                     # 📄 Detaillierte Projekt-Roadmap
 ├── CLAUDE.md                         # 📄 Dieses Dokument
 └── example.env                       # 🔑 Umgebungsvariablen-Template
@@ -218,46 +256,54 @@ lernfast/
 - [x] Datenbank-Migration: Better-Auth Tabellen (user, session, account, verification)
 - [x] Session-Management: Auth-State in Homepage + Navbar
 
-### 🔄 Phase 1: MVP (IN ARBEIT)
+### ✅ Phase 1: MVP (ABGESCHLOSSEN)
 
 **Ziel:** Erste funktionierende Version mit KI-generierten Lernkarten
 
-#### Nächste kritische Schritte:
+#### Abgeschlossene Meilensteine:
 
-1. **Datenbank-Migration (App-Tabellen):**
+1. **Datenbank-Migration (App-Tabellen):** ✅
 
-   - ⚠️ SQL-Datei vorhanden: `supabase-migration.sql`
-   - Auszuführen: `lesson`, `flashcard`, `payment_subscription` Tabellen erstellen
-   - RLS Policies aktivieren für User-Datenschutz
-   - Migration im Supabase SQL Editor ausführen
+   - `lesson`, `flashcard`, `payment_subscription` Tabellen erstellt
+   - RLS Policies aktiviert für User-Datenschutz
+   - Migrations in `supabase/migrations/` verwaltet
 
-2. **n8n KI-Pipeline (MVP):**
+2. **KI-Pipeline (Backend-Integration):** ✅
 
-   - n8n-Workflow aufbauen für "Micro-Dose"-Generierung (3-5 Karten)
-   - Prompt Engineering: JSON-Output für Thesys/C1-Format
-   - LLM-Auswahl: Kosteneffiziente API (z.B. `gpt-4o-mini`)
+   - Direkte LLM-Integration im Next.js Backend (OpenAI API)
+   - Prompt Engineering: Strukturierte Flashcard-Generierung
+   - Kosteneffiziente API-Nutzung (z.B. `gpt-4o-mini`)
 
-3. **API Route: Lesson Trigger:**
+3. **API Route: Lesson Trigger:** ✅
 
-   - `POST /api/trigger-lesson` erstellen
+   - `POST /api/trigger-lesson` implementiert
    - Input: `{ topic: string, lessonType: 'micro_dose' | 'deep_dive' }`
    - Logik:
      1. User-Auth prüfen (Better-Auth Session)
      2. Neuen `lesson`-Eintrag in Supabase erstellen (Status: 'pending')
-     3. n8n-Webhook triggern mit Topic + Lesson-ID
-     4. Response: `{ lessonId: uuid, status: 'processing' }`
+     3. KI-Generierung direkt im Backend ausführen
+     4. Flashcards in Datenbank speichern (Status: 'completed')
+     5. Response: `{ lessonId: uuid, status: 'completed' }`
 
-4. **Flashcard-UI:**
+4. **Flashcard-UI:** ✅
 
    - Komponente: `components/flashcard/FlashcardViewer.tsx`
-   - Thesys/C1 JSON-Rendering (oder Fallback zu Plaintext)
-   - "Als gelernt markieren"-Button
+   - Swipeable Card-Interface mit Neobrutalismus-Design
+   - "Als gelernt markieren"-Button mit API-Integration
+   - Fortschrittsanzeige
 
-5. **Dashboard:**
+5. **Dashboard:** ✅
+
    - Route: `app/dashboard/page.tsx`
-   - Liste aller Lessons des Users
-   - Status-Anzeige (Pending/Processing/Completed)
+   - Liste aller Lessons des Users mit Status-Badges
+   - Profil-Seite: `app/dashboard/profile/page.tsx`
+   - Loading States mit Hamster-Animation
    - Link zu Flashcard-Viewer
+
+6. **User Experience:** ✅
+   - Loading Modal während KI-Generierung
+   - Error Handling & User Feedback
+   - Mobile-optimiertes Design
 
 ### 📋 Phase 2: Monetarisierung (GEPLANT)
 
@@ -268,47 +314,295 @@ lernfast/
 
 ### 🚀 Phase 3: Optimierung (SPÄTER)
 
-- [ ] Asynchrone n8n-Verarbeitung + E-Mail-Benachrichtigung
-- [ ] Spaced Repetition-Algorithmus
-- [ ] Audio-Zusammenfassungen (TTS)
+- [ ] Asynchrone KI-Verarbeitung + E-Mail-Benachrichtigung bei Fertigstellung
+- [ ] Spaced Repetition-Algorithmus (optimierte Wiederholungsintervalle)
+- [ ] Audio-Zusammenfassungen (TTS für Flashcards)
+- [ ] Thesys/C1 Integration für visuelle Graphen/Mindmaps
+- [ ] Performance-Optimierung (Caching, Edge Functions)
 
 ---
 
-## KI-Pipeline Workflow (n8n)
+## KI-Pipeline Workflow (Backend-Integration)
 
-**Status:** ❌ Noch nicht implementiert
+**Status:** ✅ Implementiert
 
-### Konzept:
+### Architektur:
 
 ```
-Next.js API Route (Webhook-Client)
-    ↓ POST: { topic, lessonId }
-n8n Workflow (Webhook-Trigger)
+User Input (Homepage/Dashboard)
+    ↓ POST /api/trigger-lesson: { topic, lessonType }
+Next.js API Route (Server-Side)
     ↓
-LLM Prompt Engineering (Few-Shot)
-    ↓ JSON-Output
-Thesys/C1 Struktur-Validierung
+1. Auth Check (Better-Auth Session)
     ↓
-Supabase: Flashcards erstellen + Lesson-Status → 'completed'
+2. Create Lesson Entry (Supabase: status='pending')
+    ↓
+3. LLM API Call (OpenAI/Alternative)
+   - Prompt Engineering (Few-Shot)
+   - JSON-Output mit strukturierten Flashcards
+    ↓
+4. Parse & Validate Response
+    ↓
+5. Store Flashcards in DB (Supabase)
+    ↓
+6. Update Lesson Status → 'completed'
+    ↓
+Response: { lessonId, status }
+    ↓
+Client: Redirect zu /lesson/[id]
     ↓ (Optional in Phase 3)
 Resend E-Mail-Benachrichtigung
 ```
 
-### Kritische Anforderungen an n8n:
+### Implementierungsdetails:
 
-- **Input:** Topic (String), Lesson ID (UUID), Lesson Type (Enum)
-- **Output:** Array von Flashcards im Format:
-  ```json
-  {
-    "question": "Was ist Quantum Superposition?",
-    "thesys_json": {
-      "nodes": [...],
-      "edges": [...],
-      "layout": "force-directed"
+**API Endpoint:** `POST /api/trigger-lesson`
+
+**Input:**
+
+```typescript
+{
+  topic: string; // z.B. "Quantum Computing Basics"
+  lessonType: "micro_dose" | "deep_dive";
+}
+```
+
+**Output:**
+
+```typescript
+{
+  lessonId: string;           // UUID der erstellten Lesson
+  status: 'completed' | 'failed';
+  flashcards?: Array<{
+    id: string;
+    question: string;
+    answer: string;
+    difficulty?: string;
+  }>;
+  error?: string;             // Bei Fehler
+}
+```
+
+**LLM Prompt-Struktur:**
+
+- System Prompt: Rolle als Lern-Experte definieren
+- User Prompt: Topic + gewünschte Anzahl Karten (basierend auf lessonType)
+- Few-Shot Examples: 2-3 Beispiel-Flashcards für Konsistenz
+- Output Format: Strukturiertes JSON mit question/answer Paaren
+
+**Error Handling:**
+
+- Bei LLM-Fehler → Lesson-Status auf 'failed' setzen
+- Bei Parsing-Fehler → Retry mit angepasstem Prompt
+- Bei DB-Fehler → Transaction Rollback
+- User-Feedback über Loading Modal
+
+---
+
+## Mermaid.js Integration (Intelligente Visualisierungs-Auswahl)
+
+**Status:** ✅ Implementiert (2025-10-12)
+
+### Übersicht
+
+Die KI wählt basierend auf dem Lerninhalt intelligent zwischen verschiedenen Visualisierungstypen:
+
+1. **Thesys (Concept Maps)** - Für konzeptionelle Zusammenhänge
+2. **Mermaid Flowchart** - Für Prozesse und Abläufe
+3. **Mermaid Mindmap** - Für Themenübersichten
+4. **Mermaid Sequence** - Für Interaktionen und Kommunikation
+5. **Mermaid Class/ER** - Für Strukturen und Datenmodelle
+6. **Beide (Thesys + Mermaid)** - Für komplexe Themen
+
+### Architektur
+
+```
+OpenAI LLM
+    ↓ (wählt Visualisierung basierend auf Inhalt)
+Flashcard mit visualizations Array
+    ↓
+Für jede Mermaid-Visualisierung:
+    ↓
+POST /api/render-mermaid
+    ↓
+Puppeteer + mermaid-cli
+    ↓
+SVG mit Neobrutalismus-CSS
+    ↓
+Cache SVG in flashcard.visualizations[].data.svg
+    ↓
+Speichere in Datenbank
+```
+
+### API Endpoint: `/api/render-mermaid`
+
+**Input:**
+
+```typescript
+{
+  code: string;              // Mermaid syntax code
+  diagramType?: MermaidDiagramType;  // Optional hint
+}
+```
+
+**Output:**
+
+```typescript
+{
+  svg: string; // Gerendetes SVG mit Neobrutalismus-Styling
+  diagramType: string;
+}
+```
+
+**Supported Diagram Types:**
+
+- `flowchart` - Prozess-Diagramme
+- `mindmap` - Themenübersichten
+- `sequence` - Interaktions-Diagramme
+- `class` - Klassendiagramme
+- `er` - Entity-Relationship-Diagramme
+- `state` - Zustandsdiagramme
+- `gantt` - Zeitpläne
+- `pie` - Kreisdiagramme
+- `quadrant` - Quadranten-Diagramme
+- `timeline` - Zeitlinien
+
+### Neobrutalismus-Styling für Mermaid
+
+Automatisch angewendetes CSS:
+
+- **Dicke schwarze Borders:** 4px stroke-width
+- **15px Border-Radius:** Abgerundete Ecken
+- **Retro-Farben:** Peach (#FFC667), Pink (#FB7DA8), Teal (#00D9BE), Blue (#0CBCD7)
+- **Font-Weight 800:** Extrabold für alle Labels
+- **Box-Shadows:** 4px 4px 0px 0px rgba(0,0,0,1)
+
+### Intelligente Visualisierungs-Auswahl (Prompt Engineering)
+
+Die KI folgt diesen Richtlinien:
+
+**Flowchart verwenden für:**
+
+- HTTP Request Lifecycle
+- Algorithmen (Binary Search, Sorting)
+- Build Pipelines
+- Entscheidungsbäume
+
+**Mindmap verwenden für:**
+
+- JavaScript Frameworks Übersicht
+- Machine Learning Kategorien
+- Themen-Cluster
+
+**Sequence Diagram verwenden für:**
+
+- OAuth 2.0 Flow
+- API Request/Response
+- Client-Server Kommunikation
+
+**Class/ER Diagram verwenden für:**
+
+- Datenbank-Schemas
+- OOP-Klassenstrukturen
+- E-Commerce Datenmodell
+
+**Thesys verwenden für:**
+
+- Abstrakte Konzepte (REST Prinzipien)
+- Definitionen (Was ist Cloud Computing?)
+- Hierarchische Wissensstrukturen
+
+**Beide (Thesys + Mermaid) verwenden für:**
+
+- Komplexe Themen mit Konzepten UND Prozessen
+- Beispiel: "REST API Design" → Thesys (Prinzipien) + Flowchart (Request Handling)
+
+### Performance-Optimierung
+
+**SVG Caching:**
+
+- SVG wird serverseitig beim Erstellen der Flashcard gerendert
+- Gespeichert in `flashcard.visualizations[].data.svg`
+- Client muss nicht erneut rendern
+- Reduziert Puppeteer-Overhead bei wiederholtem Abruf
+
+**Fallback:**
+
+- Falls serverseitiges Rendering fehlschlägt → Mermaid-Code wird gespeichert
+- Client kann clientseitig rendern (optional, aktuell nicht implementiert)
+
+### TypeScript Types
+
+```typescript
+export type VisualizationType = "thesys" | "mermaid";
+
+export type MermaidDiagramType =
+  | "flowchart"
+  | "mindmap"
+  | "sequence"
+  | "class"
+  | "state"
+  | "er"
+  | "gantt"
+  | "pie"
+  | "quadrant"
+  | "timeline";
+
+export interface MermaidVisualization {
+  diagramType: MermaidDiagramType;
+  code: string;
+  svg?: string; // Optional cached SVG
+}
+
+export interface Visualization {
+  type: VisualizationType;
+  data: ThesysJSON | MermaidVisualization;
+}
+```
+
+### Beispiel-Output (OpenAI Response)
+
+```json
+{
+  "cards": [
+    {
+      "question": "Wie funktioniert ein HTTP Request?",
+      "visualizations": [
+        {
+          "type": "mermaid",
+          "data": {
+            "diagramType": "flowchart",
+            "code": "flowchart TD\n  A[Client] --> B[DNS Lookup]\n  B --> C[TCP Connection]\n  C --> D[HTTP Request]\n  D --> E[Server Processing]\n  E --> F[HTTP Response]"
+          }
+        }
+      ]
+    },
+    {
+      "question": "Was sind die REST Prinzipien?",
+      "visualizations": [
+        {
+          "type": "thesys",
+          "data": {
+            "nodes": [
+              { "id": "1", "label": "REST", "type": "concept" },
+              { "id": "2", "label": "Stateless", "type": "detail" }
+            ],
+            "edges": [{ "from": "1", "to": "2", "label": "erfordert" }],
+            "layout": "hierarchical"
+          }
+        },
+        {
+          "type": "mermaid",
+          "data": {
+            "diagramType": "sequence",
+            "code": "sequenceDiagram\n  Client->>Server: GET /api/users\n  Server->>Database: Query Users\n  Database-->>Server: User Data\n  Server-->>Client: 200 OK + JSON"
+          }
+        }
+      ]
     }
-  }
-  ```
-- **Error Handling:** Bei Fehler → Supabase Lesson-Status auf 'failed' setzen
+  ]
+}
+```
 
 ---
 
@@ -330,8 +624,9 @@ NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
 # Resend (SERVER-ONLY - für Magic Link E-Mails)
 RESEND_API_KEY=re_your_api_key_here  # Get from: https://resend.com/api-keys
 
-# n8n (Phase 1 - noch nicht implementiert)
-N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/generate-lesson
+# OpenAI / LLM API (SERVER-ONLY - für KI-Generierung)
+OPENAI_API_KEY=sk-proj-...  # Get from: https://platform.openai.com/api-keys
+# Alternativ: ANTHROPIC_API_KEY, GOOGLE_AI_API_KEY, etc.
 
 # Stripe (Phase 2 - noch nicht implementiert)
 STRIPE_SECRET_KEY=sk_test_...
@@ -385,7 +680,10 @@ Siehe: `components/ui/input.tsx` für Referenz-Implementation
 ### 3. Ladezeiten (Deep Dive)
 
 **Problem:** 10-15 Karten-Generierung dauert >30s
-**Lösung:** Asynchrone n8n-Verarbeitung + E-Mail-Notification (Phase 3)
+**Lösung:**
+
+- Aktuell: Loading Modal mit Hamster-Animation für bessere UX
+- Phase 3: Asynchrone Verarbeitung + E-Mail-Notification bei Fertigstellung
 
 ### 4. Thesys/C1 Integration
 
@@ -460,7 +758,8 @@ pnpm lint
 - **Masterplan:** Siehe `masterplan.md` für vollständige Feature-Roadmap
 - **Better-Auth Docs:** https://better-auth.com
 - **Supabase Docs:** https://supabase.com/docs
-- **n8n Docs:** https://docs.n8n.io
+- **OpenAI API Docs:** https://platform.openai.com/docs
+- **Resend Docs:** https://resend.com/docs
 - **Thesys/C1:** (Dokumentation noch zu recherchieren)
 - **Neobrutalismus Design:** https://neobrutalism.dev
 
@@ -476,8 +775,9 @@ pnpm lint
 
 2. **Prioritäten:**
 
-   - **Phase 1 MVP** ist aktuelles Ziel
-   - Fokus auf: Datenbank-Schema → n8n-Pipeline → Flashcard-UI
+   - **Phase 1 MVP** ist abgeschlossen ✅
+   - Nächstes Ziel: **Phase 2 Monetarisierung** (Rate Limiting + Stripe)
+   - Fokus auf: User Experience Verbesserungen, Performance-Optimierung
 
 3. **Bei neuen Features:**
 
@@ -487,9 +787,10 @@ pnpm lint
    - Teste Auth-Flow (Better-Auth)
 
 4. **Bei Fragen:**
-   - Datenbank-Schema siehe oben
-   - KI-Pipeline-Flow siehe "KI-Pipeline Workflow"
-   - Design-Tokens siehe "Design-System"
+   - Datenbank-Schema siehe "Datenbank-Schema (Supabase PostgreSQL)"
+   - KI-Pipeline siehe "KI-Pipeline Workflow (Backend-Integration)"
+   - API-Endpunkte siehe "Projektstruktur" → `app/api/`
+   - Design-Tokens siehe "Design-System (Neobrutalismus)"
 
 ---
 
@@ -549,5 +850,13 @@ ADD COLUMN IF NOT EXISTS "token" TEXT UNIQUE NOT NULL DEFAULT gen_random_uuid():
 
 ---
 
-**Letzte Aktualisierung:** 2025-10-10 (Magic Link + Navbar implementiert)
-**Projekt-Status:** Phase 0 abgeschlossen, Phase 1 bereit für Datenbank-Migration
+**Letzte Aktualisierung:** 2025-10-12 (Mermaid.js Integration mit intelligenter Visualisierungs-Auswahl)
+**Projekt-Status:** Phase 1 MVP + Mermaid Integration abgeschlossen ✅ | Phase 2 (Monetarisierung) als nächstes
+
+**Neue Features:**
+
+- ✅ Intelligente Visualisierungs-Auswahl durch KI (Thesys + Mermaid)
+- ✅ Serverseitiges Mermaid SVG-Rendering mit Puppeteer
+- ✅ Neobrutalismus-Styling für alle Mermaid-Diagramme
+- ✅ Support für 10+ Mermaid-Diagrammtypen (Flowchart, Mindmap, Sequence, Class, ER, etc.)
+- ✅ SVG-Caching für Performance-Optimierung

@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+I usually already have a DEV server running. You don't need to spin up a new one after changes.

@@ -6,10 +6,13 @@ import { Navbar } from "@/components/navbar";
 import { FeaturesSection } from "@/components/landing/features-section";
 import { Footer } from "@/components/landing/footer";
 import { GradientBackground } from "@/components/landing/gradient-background";
+import { LoadingModal } from "@/components/loading-modal";
 import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 import { cn } from "@/lib/utils";
+
+type LoadingPhase = "analyzing" | "generating" | "finalizing";
 
 function HomeContent() {
   const router = useRouter();
@@ -20,6 +23,7 @@ function HomeContent() {
     "micro_dose"
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingPhase, setLoadingPhase] = useState<LoadingPhase | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Verarbeite Topic aus URL-Parameter (nach Login-Redirect)
@@ -53,10 +57,17 @@ function HomeContent() {
       return;
     }
 
-    // User ist eingeloggt → Starte KI-Flow
+    // User ist eingeloggt → Starte KI-Flow mit Phasen
     setIsLoading(true);
+    setLoadingPhase("analyzing");
 
     try {
+      // Phase 1: Analysiere (kurze Verzögerung für bessere UX)
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Phase 2: Generiere (API Call)
+      setLoadingPhase("generating");
+
       const response = await fetch("/api/trigger-lesson", {
         method: "POST",
         headers: {
@@ -75,15 +86,21 @@ function HomeContent() {
           data.error || "Ein Fehler ist aufgetreten. Bitte versuche es erneut."
         );
         setIsLoading(false);
+        setLoadingPhase(null);
         return;
       }
 
-      // Erfolg → Weiterleitung zum Dashboard oder Lesson-View
+      // Phase 3: Finalisiere
+      setLoadingPhase("finalizing");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Erfolg → Weiterleitung zum Lesson-View
       router.push(`/lesson/${data.lessonId}`);
     } catch (err) {
       console.error("Lesson creation error:", err);
       setError("Ein unerwarteter Fehler ist aufgetreten.");
       setIsLoading(false);
+      setLoadingPhase(null);
     }
   };
 
@@ -181,6 +198,12 @@ function HomeContent() {
 
       {/* Footer - nur für nicht-eingeloggte User */}
       {!session?.user && !isPending && <Footer />}
+
+      {/* Loading Modal mit Hamster */}
+      <LoadingModal
+        isOpen={loadingPhase !== null}
+        phase={loadingPhase || "analyzing"}
+      />
     </>
   );
 }
