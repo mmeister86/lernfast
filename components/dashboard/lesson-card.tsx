@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   Card,
@@ -10,12 +11,24 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
 import type { LessonStatus, LessonType, LessonWithCount } from "@/lib/lesson.types";
 
 type LessonCardProps = {
   lesson: LessonWithCount;
+  onDelete?: (lessonId: string) => Promise<void>;
 };
 
 const STATUS_CONFIG = {
@@ -52,7 +65,8 @@ const TYPE_CONFIG = {
   },
 };
 
-export function LessonCard({ lesson }: LessonCardProps) {
+export function LessonCard({ lesson, onDelete }: LessonCardProps) {
+  const [isDeleting, setIsDeleting] = useState(false);
   const statusConfig = STATUS_CONFIG[lesson.status];
   const typeConfig = TYPE_CONFIG[lesson.lesson_type];
 
@@ -60,6 +74,20 @@ export function LessonCard({ lesson }: LessonCardProps) {
     addSuffix: true,
     locale: de,
   });
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await onDelete(lesson.id);
+      // Nach erfolgreichem Löschen bleibt isDeleting true,
+      // da die Komponente aus dem DOM entfernt wird
+    } catch (error) {
+      console.error("Delete failed:", error);
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <Card className="hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all cursor-pointer">
@@ -128,6 +156,40 @@ export function LessonCard({ lesson }: LessonCardProps) {
             Wird erstellt...
           </Button>
         )}
+        
+        {/* Delete Button mit AlertDialog */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button 
+              variant="coral" 
+              size="icon" 
+              disabled={isDeleting}
+              className="shrink-0"
+            >
+              🗑️
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Lerninhalt löschen?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Diese Aktion kann nicht rückgängig gemacht werden. 
+                Alle Flashcards dieser Lerneinheit werden ebenfalls gelöscht.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>
+                Abbrechen
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Wird gelöscht..." : "Löschen"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardFooter>
     </Card>
   );

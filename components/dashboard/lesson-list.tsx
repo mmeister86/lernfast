@@ -1,75 +1,54 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { LessonCard } from "./lesson-card";
 import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client";
 import type { LessonWithCount } from "@/lib/lesson.types";
 
 type LessonListProps = {
-  userId: string;
+  lessons: LessonWithCount[];
+  error: string | null;
 };
 
-export function LessonList({ userId }: LessonListProps) {
+export function LessonList({ lessons: initialLessons, error }: LessonListProps) {
+  const [lessons, setLessons] = useState<LessonWithCount[]>(initialLessons);
   const [filter, setFilter] = useState<"all" | "completed" | "processing">(
     "all"
   );
-  const [lessons, setLessons] = useState<LessonWithCount[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Lade Lessons aus Supabase
-  useEffect(() => {
-    async function loadLessons() {
-      try {
-        setIsLoading(true);
-        setError(null);
+  /**
+   * Löscht eine Lesson mit optimistic update
+   */
+  const handleDelete = async (lessonId: string) => {
+    // Backup für Rollback bei Fehler
+    const backup = [...lessons];
 
-        const supabase = createClient();
+    // Optimistic Update: Entferne Lesson sofort aus UI
+    setLessons((prev) => prev.filter((l) => l.id !== lessonId));
 
-        // Query: Alle Lessons des Users + Flashcard-Anzahl
-        const { data, error: queryError } = await supabase
-          .from("lesson")
-          .select(
-            `
-            *,
-            flashcard(count)
-          `
-          )
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false });
+    try {
+      const res = await fetch("/api/lesson/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lessonId }),
+      });
 
-        if (queryError) {
-          console.error("Supabase query error:", queryError);
-          setError("Fehler beim Laden der Lerneinheiten.");
-          setIsLoading(false);
-          return;
-        }
+      const data = await res.json();
 
-        // Transformiere Daten: Extrahiere Flashcard-Count
-        const lessonsWithCount: LessonWithCount[] =
-          data?.map((lesson: any) => ({
-            id: lesson.id,
-            user_id: lesson.user_id,
-            topic: lesson.topic,
-            lesson_type: lesson.lesson_type,
-            status: lesson.status,
-            created_at: lesson.created_at,
-            completed_at: lesson.completed_at,
-            flashcard_count: lesson.flashcard?.[0]?.count || 0,
-          })) || [];
-
-        setLessons(lessonsWithCount);
-      } catch (err) {
-        console.error("Unexpected error loading lessons:", err);
-        setError("Ein unerwarteter Fehler ist aufgetreten.");
-      } finally {
-        setIsLoading(false);
+      if (!res.ok) {
+        throw new Error(data.error || "Löschen fehlgeschlagen");
       }
+    } catch (error) {
+      // Rollback bei Fehler
+      console.error("Delete failed:", error);
+      setLessons(backup);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Fehler beim Löschen. Bitte versuche es erneut."
+      );
     }
-
-    loadLessons();
-  }, [userId]);
+  };
 
   const filteredLessons = lessons.filter((lesson) => {
     if (filter === "all") return true;
@@ -94,14 +73,12 @@ export function LessonList({ userId }: LessonListProps) {
         <Button
           variant={filter === "all" ? "default" : "neutral"}
           onClick={() => setFilter("all")}
-          disabled={isLoading}
         >
           Alle ({lessons.length})
         </Button>
         <Button
           variant={filter === "completed" ? "default" : "neutral"}
           onClick={() => setFilter("completed")}
-          disabled={isLoading}
         >
           Abgeschlossen (
           {lessons.filter((l) => l.status === "completed").length})
@@ -109,7 +86,6 @@ export function LessonList({ userId }: LessonListProps) {
         <Button
           variant={filter === "processing" ? "default" : "neutral"}
           onClick={() => setFilter("processing")}
-          disabled={isLoading}
         >
           In Bearbeitung (
           {
@@ -121,21 +97,8 @@ export function LessonList({ userId }: LessonListProps) {
         </Button>
       </div>
 
-      {/* Loading State */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="bg-gray-50 border-4 border-black rounded-[15px] p-6 animate-pulse shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-            >
-              <div className="h-6 bg-[#FFC667] rounded-[15px] w-3/4 mb-4" />
-              <div className="h-4 bg-[#FB7DA8] rounded-[15px] w-1/2 mb-3" />
-              <div className="h-4 bg-[#00D9BE] rounded-[15px] w-full" />
-            </div>
-          ))}
-        </div>
-      ) : filteredLessons.length === 0 ? (
+      {/* Content */}
+      {filteredLessons.length === 0 ? (
         /* Empty State */
         <div className="text-center py-16 border-4 border-dashed border-black rounded-[15px] bg-white">
           <p className="text-xl font-extrabold mb-2">Keine Lessons gefunden</p>
@@ -149,7 +112,11 @@ export function LessonList({ userId }: LessonListProps) {
         /* Lessons Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredLessons.map((lesson) => (
-            <LessonCard key={lesson.id} lesson={lesson} />
+            <LessonCard 
+              key={lesson.id} 
+              lesson={lesson} 
+              onDelete={handleDelete}
+            />
           ))}
         </div>
       )}
