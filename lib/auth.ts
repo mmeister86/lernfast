@@ -2,19 +2,19 @@ import { betterAuth } from "better-auth";
 import { Pool } from "pg";
 import { magicLink } from "better-auth/plugins";
 import { emailHarmony } from "better-auth-harmony";
-import { Unsend } from "unsend";
+import { Resend } from "resend";
 
-// Lazy-Initialisierung des Unsend-Clients, um Build-Fehler zu vermeiden
+// Lazy-Initialisierung des Resend-Clients, um Build-Fehler zu vermeiden
 // Wird erst erstellt, wenn tatsächlich eine E-Mail gesendet werden soll
-let unsendClient: Unsend | null = null;
-function getUnsendClient(): Unsend {
-  if (!unsendClient) {
-    if (!process.env.UNSEND_API_KEY) {
-      throw new Error("UNSEND_API_KEY environment variable is not set");
+let resendClient: Resend | null = null;
+function getResendClient(): Resend {
+  if (!resendClient) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY environment variable is not set");
     }
-    unsendClient = new Unsend(process.env.UNSEND_API_KEY);
+    resendClient = new Resend(process.env.RESEND_API_KEY);
   }
-  return unsendClient;
+  return resendClient;
 }
 
 // Supabase connection string format:
@@ -80,7 +80,7 @@ export const auth = betterAuth({
       enabled: true,
       sendChangeEmailVerification: async ({ user, newEmail, url, token }) => {
         try {
-          await getUnsendClient().emails.send({
+          const { data, error } = await getResendClient().emails.send({
             from: "noreply@lernfa.st",
             to: user.email, // Bestätigung an alte E-Mail-Adresse
             subject: "E-Mail-Adresse ändern - Bestätigung erforderlich",
@@ -123,6 +123,9 @@ export const auth = betterAuth({
               </div>
             `,
           });
+          if (error) {
+            throw error;
+          }
         } catch (error) {
           console.error("Failed to send email change verification:", error);
           throw error;
@@ -137,7 +140,7 @@ export const auth = betterAuth({
     magicLink({
       sendMagicLink: async ({ email, token, url }, request) => {
         try {
-          await getUnsendClient().emails.send({
+          const { data, error } = await getResendClient().emails.send({
             from: "noreply@lernfa.st",
             to: email,
             subject: "Dein Magic Link für lernfa.st",
@@ -176,6 +179,9 @@ export const auth = betterAuth({
               </div>
             `,
           });
+          if (error) {
+            throw error;
+          }
         } catch (error) {
           console.error("Failed to send magic link email:", error);
           throw error;
