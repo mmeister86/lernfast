@@ -401,7 +401,7 @@ Resend E-Mail-Benachrichtigung
 
 ## Mermaid.js Integration (Intelligente Visualisierungs-Auswahl)
 
-**Status:** ✅ Implementiert (2025-10-12)
+**Status:** ✅ Clientseitiges Rendering implementiert (2025-10-12)
 
 ### Übersicht
 
@@ -414,43 +414,42 @@ Die KI wählt basierend auf dem Lerninhalt intelligent zwischen verschiedenen Vi
 5. **Mermaid Class/ER** - Für Strukturen und Datenmodelle
 6. **Beide (Thesys + Mermaid)** - Für komplexe Themen
 
-### Architektur
+### Architektur (Clientseitiges Rendering)
 
 ```
 OpenAI LLM
     ↓ (wählt Visualisierung basierend auf Inhalt)
 Flashcard mit visualizations Array
     ↓
-Für jede Mermaid-Visualisierung:
+Speichere in Datenbank (nur Mermaid-Code, kein SVG)
     ↓
-POST /api/render-mermaid
+Browser lädt Flashcard-Component
     ↓
-Puppeteer + mermaid-cli
+MermaidVisualizationComponent (Client-Component)
     ↓
-SVG mit Neobrutalismus-CSS
+mermaid.js rendert SVG direkt im Browser
     ↓
-Cache SVG in flashcard.visualizations[].data.svg
-    ↓
-Speichere in Datenbank
+User sieht interaktives Diagramm
 ```
 
-### API Endpoint: `/api/render-mermaid`
+**Wichtig:** Mermaid wird ausschließlich clientseitig gerendert, da:
 
-**Input:**
+- Bessere Performance durch Browser-Caching
+- Keine zusätzliche API-Infrastruktur (kein Puppeteer/Server-Side Rendering)
+- Mermaid.js nutzt Browser-APIs und kann nicht serverseitig gerendert werden (Next.js SSR-Konflikt)
 
-```typescript
-{
-  code: string;              // Mermaid syntax code
-  diagramType?: MermaidDiagramType;  // Optional hint
-}
-```
+### Component-Struktur
 
-**Output:**
+**Datei:** `components/flashcard/mermaid-visualization.tsx`
 
 ```typescript
-{
-  svg: string; // Gerendetes SVG mit Neobrutalismus-Styling
-  diagramType: string;
+"use client"; // MUSS Client-Component sein!
+
+import mermaid from "mermaid";
+
+export function MermaidVisualizationComponent({ mermaidData }) {
+  // Rendert Mermaid-Code zu SVG im Browser
+  // Nutzt Neobrutalismus-Theme (Peach, Pink, Teal, Black borders)
 }
 ```
 
@@ -466,6 +465,51 @@ Speichere in Datenbank
 - `pie` - Kreisdiagramme
 - `quadrant` - Quadranten-Diagramme
 - `timeline` - Zeitlinien
+
+### Code Sanitization (Best Practice)
+
+**Funktion:** `sanitizeMermaidCode()` in `lib/utils.ts`
+
+Bereinigt Mermaid-Code gemäß offizieller Mermaid.js Dokumentation:
+
+**1. Konvertiert escaped Newlines zu echten Zeilenumbrüchen:**
+
+```typescript
+// OpenAI gibt oft:
+"flowchart TD\\n  Start"
+
+// Mermaid.js braucht:
+"flowchart TD
+  Start"
+```
+
+**2. Entfernt problematische Tabs und Whitespaces:**
+
+```typescript
+// Tabs → Spaces
+"flowchart TD\\t  Start" → "flowchart TD    Start"
+
+// Trim pro Zeile
+"  flowchart TD  \n  Start  " → "flowchart TD\n  Start"
+```
+
+**3. Escaped Special Characters in Node-Labels:**
+
+```typescript
+// Problematisch (Parse-Error):
+A[Text (mit Klammern)]
+B[Text: Doppelpunkt]
+
+// Korrekt (mit Quotes):
+A["Text (mit Klammern)"]
+B["Text: Doppelpunkt"]
+```
+
+**Anwendung:**
+
+- Serverseitig: In `api/trigger-lesson/route.ts` beim Speichern
+- Clientseitig: In `mermaid-visualization.tsx` vor dem Rendering
+- Verhindert Parse-Errors durch inkonsistente OpenAI-Outputs
 
 ### Neobrutalismus-Styling für Mermaid
 
@@ -519,17 +563,19 @@ Die KI folgt diesen Richtlinien:
 
 ### Performance-Optimierung
 
-**SVG Caching:**
+**Clientseitiges Rendering:**
 
-- SVG wird serverseitig beim Erstellen der Flashcard gerendert
-- Gespeichert in `flashcard.visualizations[].data.svg`
-- Client muss nicht erneut rendern
-- Reduziert Puppeteer-Overhead bei wiederholtem Abruf
+- Mermaid-Code wird in Datenbank gespeichert (kein SVG-Pre-Rendering)
+- Browser rendert SVG on-the-fly beim ersten Laden der Flashcard
+- Browser-eigenes Caching sorgt für schnelle Wiederholungen
+- Kein serverseitiger Overhead (kein Puppeteer, keine zusätzliche API)
 
-**Fallback:**
+**Vorteile:**
 
-- Falls serverseitiges Rendering fehlschlägt → Mermaid-Code wird gespeichert
-- Client kann clientseitig rendern (optional, aktuell nicht implementiert)
+- Einfachere Architektur (keine zusätzlichen Dependencies wie Puppeteer)
+- Schnellere KI-Generierung (keine serverseitigen SVG-Rendering-Wartezeiten)
+- Bessere Skalierbarkeit (Rendering-Last auf Client verteilt)
+- Next.js SSR-kompatibel (Mermaid-Component ist korrekt als "use client" isoliert)
 
 ### TypeScript Types
 
@@ -850,13 +896,15 @@ ADD COLUMN IF NOT EXISTS "token" TEXT UNIQUE NOT NULL DEFAULT gen_random_uuid():
 
 ---
 
-**Letzte Aktualisierung:** 2025-10-12 (Mermaid.js Integration mit intelligenter Visualisierungs-Auswahl)
+**Letzte Aktualisierung:** 2025-10-12 (Mermaid.js Integration mit clientseitigem Rendering + Code Sanitization)
 **Projekt-Status:** Phase 1 MVP + Mermaid Integration abgeschlossen ✅ | Phase 2 (Monetarisierung) als nächstes
 
 **Neue Features:**
 
 - ✅ Intelligente Visualisierungs-Auswahl durch KI (Thesys + Mermaid)
-- ✅ Serverseitiges Mermaid SVG-Rendering mit Puppeteer
+- ✅ Clientseitiges Mermaid SVG-Rendering im Browser (kein Puppeteer)
+- ✅ Robuste Code-Sanitization gemäß Mermaid.js Best Practices (Newlines, Special Chars)
 - ✅ Neobrutalismus-Styling für alle Mermaid-Diagramme
 - ✅ Support für 10+ Mermaid-Diagrammtypen (Flowchart, Mindmap, Sequence, Class, ER, etc.)
-- ✅ SVG-Caching für Performance-Optimierung
+- ✅ Isolierte Client-Component für SSR-Kompatibilität
+- ✅ Browser-Caching für Performance-Optimierung

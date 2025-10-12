@@ -39,20 +39,20 @@
 ### Frontend & UI
 
 - **Framework:** **Next.js** (für SSR/SEO und API Routes).
-- **Styling/Komponenten:** **Neobrutalism.dev UI** für den Look & Feel; **Thesys/C1** für die Visualisierung der Lerninhalte.
+- **Styling/Komponenten:** **Neobrutalism.dev UI** für den Look & Feel; **Thesys/C1 + Mermaid.js** für die Visualisierung der Lerninhalte (intelligente KI-gesteuerte Auswahl zwischen 10+ Diagrammtypen).
 
 ### Backend & Services (Der Lean-Stack)
 
-| Komponente                   | Zweck                                                                                                                 | Empfohlene Lösung                                                    |
-| :--------------------------- | :-------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- |
-| **Datenbank & Storage**      | Speicherung von Benutzerdaten, Lernfortschritt, Metadaten und visuellen Assets.                                       | **Supabase (PostgreSQL + Storage)**                                  |
-| **Authentifizierung**        | Benutzerregistrierung, Login und Session Management.                                                                  | **Better-Auth**                                                      |
-| **Email-Validierung**        | Email-Normalisierung und Blockierung von Wegwerf-Domains.                                                            | **Better-Auth-Harmony** (55k+ Domains blockiert)                     |
-| **Monetarisierung**          | Abonnement- und Zahlungsverwaltung.                                                                                   | **Stripe**                                                           |
-| **Rate Limiting/Queue**      | Begrenzung der KI-Anfragen; Warteschlange.                                                                            | **Upstash (Redis)**                                                  |
-| **E-Mail-Dienst**            | Transaktionale E-Mails (Passwort zurücksetzen, Bestätigungen).                                                        | **Unsend**                                                           |
-| **KI-Pipeline**              | **Der Motor:** Next.js API Routes für Lesson-Generierung. Steuert LLM-Prompting, API-Aufrufe und Datenstrukturierung. | **Next.js API Routes** (`/api/generate-lesson`)                      |
-| **KI-Provider**              | Generierung der Rohdaten und der strukturierten JSON-Outputs.                                                         | Kosteneffiziente, externe LLM-API (z.B. OpenAI, Anthropic, DeepSeek) |
+| Komponente              | Zweck                                                                                                                 | Empfohlene Lösung                                                    |
+| :---------------------- | :-------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------- |
+| **Datenbank & Storage** | Speicherung von Benutzerdaten, Lernfortschritt, Metadaten und visuellen Assets.                                       | **Supabase (PostgreSQL + Storage)**                                  |
+| **Authentifizierung**   | Benutzerregistrierung, Login und Session Management.                                                                  | **Better-Auth**                                                      |
+| **Email-Validierung**   | Email-Normalisierung und Blockierung von Wegwerf-Domains.                                                             | **Better-Auth-Harmony** (55k+ Domains blockiert)                     |
+| **Monetarisierung**     | Abonnement- und Zahlungsverwaltung.                                                                                   | **Stripe**                                                           |
+| **Rate Limiting/Queue** | Begrenzung der KI-Anfragen; Warteschlange.                                                                            | **Upstash (Redis)**                                                  |
+| **E-Mail-Dienst**       | Transaktionale E-Mails (Passwort zurücksetzen, Bestätigungen).                                                        | **Resend**                                                           |
+| **KI-Pipeline**         | **Der Motor:** Next.js API Routes für Lesson-Generierung. Steuert LLM-Prompting, API-Aufrufe und Datenstrukturierung. | **Next.js API Routes** (`/api/generate-lesson`)                      |
+| **KI-Provider**         | Generierung der Rohdaten und der strukturierten JSON-Outputs.                                                         | Kosteneffiziente, externe LLM-API (z.B. OpenAI, Anthropic, DeepSeek) |
 
 - **Hosting:** Startempfehlung ist ein **Serverless Hoster (z.B. Vercel)** für die Next.js-App.
 
@@ -71,27 +71,37 @@ Das Kernmodell ist die **Lerneinheit** (_Lesson_), die aus mehreren **Lernkarten
 
 ## 5. Entwicklung und Meilensteine
 
-### Phase 1: MVP (Minimum Viable Product)
+### Phase 1: MVP ✅ ABGESCHLOSSEN (12. Oktober 2025)
 
-1. **Setup:** Next.js, Supabase, Better-Auth Integration.
-2. **KI-Pipeline (MVP):** Implementierung der Next.js API Route `/api/generate-lesson` zur Generierung einer **Micro-Dose-Einheit** (3-5 Karten).
-   - LLM-Integration (OpenAI GPT-5-Mini) für Flashcard-Generierung
-   - Prompt Engineering für strukturierte JSON-Outputs (Thesys/C1-Format)
+1. **Setup:** Next.js 15, Supabase, Better-Auth + Better-Auth-Harmony Integration.
+2. **KI-Pipeline (MVP):** Implementierung der Next.js API Route `/api/trigger-lesson` zur Generierung einer **Micro-Dose-Einheit** (3-5 Karten).
+   - LLM-Integration (OpenAI GPT-4o-mini) für Flashcard-Generierung
+   - Intelligente Visualisierungs-Auswahl (Thesys + Mermaid.js)
+   - Prompt Engineering für strukturierte JSON-Outputs mit 10+ Diagrammtypen
    - Direkte Speicherung der generierten Flashcards in Supabase
-3. **Lesson-Verwaltung:** API Routes für Lesson-Status und Fortschritt:
-   - `POST /api/generate-lesson` - Erstellt Lesson + generiert Flashcards
-   - `GET /api/lessons` - Listet alle Lessons des Users
-   - `GET /api/lessons/[id]` - Holt einzelne Lesson mit Flashcards
-   - `PATCH /api/flashcards/[id]` - Markiert Flashcard als gelernt
-4. **UI/UX:** Basis-Input-Feld, Darstellung der generierten Karten im **Neobrutalismus-Stil** mit Thesys/C1.
-5. **Speicherung:** Speichern der Lerneinheit in Supabase und Anzeige im einfachen User-Dashboard.
+3. **Visualisierungssystem:** Vollständige Mermaid.js Integration
+   - Clientseitiges SVG-Rendering im Browser
+   - Automatische Code-Sanitization (sanitizeMermaidCode in lib/utils.ts)
+   - Neobrutalismus-Styling mit Custom Theme
+   - Support für Flowchart, Mindmap, Sequence, Class/ER, State, Timeline und weitere
+4. **Lesson-Verwaltung:** API Routes für Lesson-Status und Fortschritt:
+   - `POST /api/trigger-lesson` - Erstellt Lesson + generiert Flashcards mit Visualisierungen
+   - `DELETE /api/lesson/delete` - Löscht Lessons
+   - `POST /api/flashcard/mark-learned` - Markiert Flashcard als gelernt
+5. **UI/UX:**
+   - Landing Page mit großem Input-Feld ("What do you want to learn today?")
+   - Flashcard-Viewer mit Swipeable Cards im **Neobrutalismus-Stil**
+   - User-Dashboard mit Lesson-Übersicht und Status-Badges
+   - Profile-Seite mit Benutzereinstellungen
+   - Loading Modal mit Hamster-Animation während KI-Generierung
+6. **Speicherung:** Vollständige Integration mit Supabase (lesson, flashcard, visualizations JSONB).
 
 ### Phase 2: Monetarisierung und Stabilität
 
 1. **Rate Limiting:** Integration von **Upstash** zur Begrenzung der kostenlosen Anfragen (Prüfung innerhalb der `/api/generate-lesson` Route).
 2. **Zahlungen:** Integration von **Stripe** zur Verwaltung des Premium-Abonnements.
 3. **Premium-Feature:** Freischaltung des **Deep Dive** (10-15 Karten) Modus für bezahlte Nutzer in der API Route (via OpenAI o4-mini-deep-research).
-4. **E-Mail-Benachrichtigungen:** Erweiterte **Unsend**-Integration für Lesson-Completion-Benachrichtigungen.
+4. **E-Mail-Benachrichtigungen:** Erweiterte **Resend**-Integration für Lesson-Completion-Benachrichtigungen.
 
 ### Phase 3: Optimierung und Skalierung
 
@@ -99,24 +109,87 @@ Das Kernmodell ist die **Lerneinheit** (_Lesson_), die aus mehreren **Lernkarten
    - Background Jobs mit Next.js (z.B. via Vercel Cron oder Queue-System)
    - Status-Updates in Echtzeit via Server-Sent Events oder Polling
    - Supabase-Status-Updates während der Generierung
-2. **Benachrichtigung:** E-Mail-Versand via Unsend, sobald die asynchron generierte Lektion fertig ist ("Dein Essen ist fertig!").
+2. **Benachrichtigung:** E-Mail-Versand via Resend, sobald die asynchron generierte Lektion fertig ist ("Dein Essen ist fertig!").
 3. **Feinschliff:** Erweiterte Lern-Tracking-Metriken und UX-Optimierung.
 
 ---
 
-## 6. Potentielle Herausforderungen & Lösungen
+## 6. Implementierte Visualisierungen (Stand: Oktober 2025)
+
+### Mermaid.js Integration
+
+**Status:** ✅ Vollständig implementiert (clientseitiges Rendering)
+
+Die KI wählt intelligent zwischen verschiedenen Visualisierungstypen:
+
+- **Flowchart** - Prozesse und Abläufe (HTTP Requests, Algorithmen, Build Pipelines)
+- **Mindmap** - Themenübersichten (Framework-Landschaften, Kategorisierungen)
+- **Sequence** - Interaktionen und Kommunikation (OAuth Flow, API-Kommunikation)
+- **Class/ER** - Datenstrukturen und -modelle (Datenbank-Schemas, OOP-Strukturen)
+- **Thesys** - Konzeptionelle Zusammenhänge (abstrakte Begriffe, Definitionen)
+
+**Technische Details:**
+
+- Clientseitiges SVG-Rendering (kein Server-Side Puppeteer notwendig)
+- Automatische Code-Sanitization (`sanitizeMermaidCode` in `lib/utils.ts`)
+- Neobrutalismus-Styling mit Custom Theme (Peach #FFC667, Pink #FB7DA8, Teal #00D9BE, Black borders 4px)
+- 10+ unterstützte Diagrammtypen (Flowchart, Mindmap, Sequence, Class, ER, State, Gantt, Pie, Quadrant, Timeline)
+- Robuste Fehlerbehandlung mit Fallback-Ansichten
+
+**Visualisierungs-Workflow:**
+
+1. OpenAI wählt basierend auf Lerninhalt passenden Diagrammtyp
+2. Mermaid-Code wird serverseitig sanitized und in DB gespeichert (JSONB visualizations Array)
+3. Browser rendert SVG on-the-fly mit mermaid.js (Client-Component)
+4. Browser-eigenes Caching sorgt für schnelle Wiederholungen
+
+---
+
+## 7. Potentielle Herausforderungen & Lösungen
 
 | Herausforderung           | Problembeschreibung                                                                                           | Strategie/Lösung                                                                                                                                                              |
 | :------------------------ | :------------------------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **KI-Prompting-Qualität** | Die KI liefert nicht das exakte JSON-Format, das Thesys erwartet.                                             | **Lösung:** Intensive Iteration und **Few-Shot Prompting** in den Next.js API Routes. Verwendung von Structured Outputs (z.B. OpenAI JSON Mode) für konsistente Datenformate. |
 | **Kostenkontrolle**       | Hohe KI-API-Kosten bei zu vielen Free-Tier-Nutzern.                                                           | **Lösung:** Strenge Nutzung von **Upstash Rate Limiting** für alle Nutzer (geprüft in `/api/generate-lesson`) und sofortige Monetarisierung der "Deep Dive"-Funktion.         |
 | **API-Timeouts**          | Serverless-Funktionen haben Timeout-Limits (z.B. Vercel: 10s Hobby, 60s Pro). Deep Dive könnte länger dauern. | **Lösung:** Phase 1: Synchrone Verarbeitung nur für Micro-Dose. Phase 3: Asynchrone Background Jobs für Deep Dive mit Status-Updates.                                         |
-| **Ladezeiten (UX)**       | Die Generierung von Deep Dive-Einheiten dauert zu lange.                                                      | **Lösung:** Phase 3: Asynchrone Verarbeitung mit Progress-Tracking und E-Mail-Benachrichtigung durch **Unsend**.                                                              |
+| **Ladezeiten (UX)**       | Die Generierung von Deep Dive-Einheiten dauert zu lange.                                                      | **Lösung:** Phase 3: Asynchrone Verarbeitung mit Progress-Tracking und E-Mail-Benachrichtigung durch **Resend**.                                                              |
 
 ---
 
-## 7. Zukünftige Erweiterungen
+## 8. Zukünftige Erweiterungen
 
 - **Spaced Repetition:** Implementierung eines Algorithmus, der Nutzern vorschlägt, wann sie "fast vergessene" Karten wiederholen sollten.
 - **Audio-Zusammenfassungen:** Generierung einer kurzen Audio-Zusammenfassung des Themas (TTS-Dienst) für unterwegs.
 - **Kollaboratives Lernen:** Teilen von Lerneinheiten mit anderen Nutzern.
+
+---
+
+## Aktueller Projekt-Status (Oktober 2025)
+
+### Abgeschlossen
+
+- ✅ **Phase 0:** Setup & Auth (Better-Auth + Better-Auth-Harmony)
+- ✅ **Phase 1:** MVP mit intelligenten Visualisierungen (Mermaid.js + Thesys)
+
+### In Planung
+
+- 📋 **Phase 2:** Monetarisierung (Stripe + Upstash Rate Limiting)
+- 🚀 **Phase 3:** Optimierung und Skalierung (Asynchrone Verarbeitung, E-Mail-Benachrichtigungen)
+
+### Nächste Schritte
+
+1. **Upstash Redis Integration** für Rate Limiting (Free-Tier: 5 Micro-Doses/Tag)
+2. **Stripe-Integration** für Premium-Abonnements (Premium-Monthly, Premium-Yearly)
+3. **Deep Dive-Feature** für Premium-Nutzer freischalten (10-15 Karten mit o4-mini-deep-research)
+4. **E-Mail-Benachrichtigungen** bei Lesson-Completion (Resend)
+
+### Technologie-Highlights
+
+- **Frontend:** Next.js 15 + React 19 + TypeScript 5
+- **Auth:** Better-Auth + Better-Auth-Harmony (55k+ blockierte Wegwerf-Domains)
+- **KI:** OpenAI GPT-4o-mini für Flashcard-Generierung
+- **Visualisierung:** Mermaid.js (10+ Diagrammtypen) + Thesys für intelligente Darstellung
+- **Datenbank:** Supabase (PostgreSQL + Storage)
+- **E-Mail:** Resend für transaktionale E-Mails
+- **Styling:** Tailwind CSS + Neobrutalismus Design System
+- **Package Manager:** pnpm
