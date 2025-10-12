@@ -4,7 +4,18 @@ import { magicLink } from "better-auth/plugins";
 import { emailHarmony } from "better-auth-harmony";
 import { Unsend } from "unsend";
 
-const unsend = new Unsend(process.env.UNSEND_API_KEY!);
+// Lazy-Initialisierung des Unsend-Clients, um Build-Fehler zu vermeiden
+// Wird erst erstellt, wenn tatsächlich eine E-Mail gesendet werden soll
+let unsendClient: Unsend | null = null;
+function getUnsendClient(): Unsend {
+  if (!unsendClient) {
+    if (!process.env.UNSEND_API_KEY) {
+      throw new Error("UNSEND_API_KEY environment variable is not set");
+    }
+    unsendClient = new Unsend(process.env.UNSEND_API_KEY);
+  }
+  return unsendClient;
+}
 
 // Supabase connection string format:
 // postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres
@@ -69,7 +80,7 @@ export const auth = betterAuth({
       enabled: true,
       sendChangeEmailVerification: async ({ user, newEmail, url, token }) => {
         try {
-          await unsend.emails.send({
+          await getUnsendClient().emails.send({
             from: "noreply@lernfa.st",
             to: user.email, // Bestätigung an alte E-Mail-Adresse
             subject: "E-Mail-Adresse ändern - Bestätigung erforderlich",
@@ -126,7 +137,7 @@ export const auth = betterAuth({
     magicLink({
       sendMagicLink: async ({ email, token, url }, request) => {
         try {
-          await unsend.emails.send({
+          await getUnsendClient().emails.send({
             from: "noreply@lernfa.st",
             to: email,
             subject: "Dein Magic Link für lernfa.st",
