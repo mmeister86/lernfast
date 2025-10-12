@@ -70,7 +70,42 @@ export function MermaidVisualizationComponent({
             noteTextColor: "#000000",
           },
           fontFamily: "inherit",
-          fontSize: 16,
+          fontSize: 18, // Größere Schrift für bessere Lesbarkeit
+          flowchart: {
+            // Optimiert für bessere Textdarstellung
+            nodeSpacing: 100,
+            rankSpacing: 120,
+            curve: "basis",
+            padding: 25,
+            htmlLabels: true,
+            useMaxWidth: true,
+            diagramPadding: 30,
+          },
+          mindmap: {
+            maxNodeWidth: 200,
+            padding: 20,
+          },
+          sequence: {
+            diagramMarginX: 60,
+            diagramMarginY: 30,
+            actorMargin: 60,
+            width: 180,
+            height: 75,
+            boxMargin: 15,
+            boxTextMargin: 8,
+            noteMargin: 15,
+            messageMargin: 40,
+            messageAlign: "center",
+            mirrorActors: true,
+            bottomMarginAdj: 1,
+            useMaxWidth: true,
+            rightAngles: false,
+            showSequenceNumbers: false,
+            wrap: true,
+          },
+          // Erhöhte Mindest-Breite für bessere Textdarstellung
+          maxTextSize: 500000,
+          wrap: true, // Globales Text-Wrapping aktivieren
         });
 
         // Eindeutige ID für dieses Diagramm
@@ -136,11 +171,99 @@ export function MermaidVisualizationComponent({
   }
 
   return (
-    <div className="mermaid-container">
+    <div className="mermaid-container w-full">
       <div
         className="bg-white border-4 border-black rounded-[15px] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 overflow-x-auto"
         dangerouslySetInnerHTML={{ __html: svg }}
       />
+      {/* CSS für bessere Mermaid-Darstellung */}
+      <style jsx>{`
+        .mermaid-container :global(svg) {
+          max-width: 100%;
+          height: auto;
+          display: block;
+          margin: 0 auto;
+          font-family: inherit;
+        }
+
+        /* Knoten-Größen und Text-Handling */
+        .mermaid-container :global(.node rect),
+        .mermaid-container :global(.node circle),
+        .mermaid-container :global(.node ellipse),
+        .mermaid-container :global(.node polygon),
+        .mermaid-container :global(.node path) {
+          min-width: fit-content !important;
+          width: auto !important;
+          height: auto !important;
+          padding: 12px 16px !important;
+          stroke-width: 4px !important;
+          stroke: #000000 !important;
+        }
+
+        /* Text in Knoten */
+        .mermaid-container :global(.nodeLabel),
+        .mermaid-container :global(.label),
+        .mermaid-container :global(text) {
+          font-size: 18px !important;
+          font-weight: 800 !important;
+          font-family: inherit !important;
+          text-anchor: middle !important;
+          dominant-baseline: middle !important;
+          white-space: pre-wrap !important;
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+        }
+
+        /* Edge Labels (Verbindungstexte) */
+        .mermaid-container :global(.edgeLabel) {
+          font-size: 16px !important;
+          font-weight: 700 !important;
+          background: white !important;
+          padding: 6px 10px !important;
+          border-radius: 8px !important;
+          border: 3px solid black !important;
+          white-space: pre-wrap !important;
+          word-wrap: break-word !important;
+        }
+
+        /* Mindmap-spezifische Styles */
+        .mermaid-container :global(.mindmap-node) {
+          min-width: 120px !important;
+          min-height: 40px !important;
+          padding: 10px 15px !important;
+        }
+
+        /* Flowchart-spezifische Styles */
+        .mermaid-container :global(.flowchart-node) {
+          min-width: 100px !important;
+          min-height: 35px !important;
+        }
+
+        /* Sequence Diagram Styles */
+        .mermaid-container :global(.actor) {
+          min-width: 120px !important;
+          min-height: 60px !important;
+        }
+
+        /* Allgemeine Text-Overflow-Behandlung */
+        .mermaid-container :global(.node text),
+        .mermaid-container :global(text) {
+          overflow: visible !important;
+          text-overflow: unset !important;
+        }
+
+        /* Responsive Anpassungen */
+        @media (max-width: 768px) {
+          .mermaid-container :global(.nodeLabel),
+          .mermaid-container :global(.label),
+          .mermaid-container :global(text) {
+            font-size: 16px !important;
+          }
+          .mermaid-container :global(.edgeLabel) {
+            font-size: 14px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

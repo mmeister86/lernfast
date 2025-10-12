@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { Navbar } from "@/components/navbar";
 import { LessonList } from "@/components/dashboard/lesson-list";
-import { createServiceClient } from "@/lib/supabase/server";
+import { getCachedLessons } from "@/lib/supabase/queries";
 import type { LessonWithCount } from "@/lib/lesson.types";
 
 export default async function DashboardPage() {
@@ -16,40 +16,18 @@ export default async function DashboardPage() {
     redirect("/auth");
   }
 
-  // Server-Side Data Fetching mit Service Client (umgeht RLS)
-  const supabase = createServiceClient();
-  
+  // Server-Side Data Fetching mit gecachten Queries (60s Cache)
   let lessons: LessonWithCount[] = [];
   let error: string | null = null;
 
   try {
-    const { data, error: queryError } = await supabase
-      .from("lesson")
-      .select(
-        `
-        *,
-        flashcard(count)
-      `
-      )
-      .eq("user_id", session.user.id)
-      .order("created_at", { ascending: false });
+    const { data, error: queryError } = await getCachedLessons(session.user.id);
 
     if (queryError) {
-      console.error("Supabase query error:", queryError);
+      console.error("getCachedLessons error:", queryError);
       error = "Fehler beim Laden der Lerneinheiten.";
     } else {
-      // Transformiere Daten: Extrahiere Flashcard-Count
-      lessons =
-        data?.map((lesson: any) => ({
-          id: lesson.id,
-          user_id: lesson.user_id,
-          topic: lesson.topic,
-          lesson_type: lesson.lesson_type,
-          status: lesson.status,
-          created_at: lesson.created_at,
-          completed_at: lesson.completed_at,
-          flashcard_count: lesson.flashcard?.[0]?.count || 0,
-        })) || [];
+      lessons = data || [];
     }
   } catch (err) {
     console.error("Unexpected error loading lessons:", err);

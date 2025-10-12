@@ -9,7 +9,7 @@ import { GradientBackground } from "@/components/landing/gradient-background";
 import { LoadingModal } from "@/components/loading-modal";
 import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { cn } from "@/lib/utils";
 
 type LoadingPhase = "analyzing" | "generating" | "finalizing";
@@ -26,38 +26,29 @@ function HomeContent() {
   const [loadingPhase, setLoadingPhase] = useState<LoadingPhase | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Track verarbeitete Topics um doppelte API-Calls zu verhindern
+  const processedTopics = useRef<Set<string>>(new Set());
+
   // Verarbeite Topic aus URL-Parameter (nach Login-Redirect)
   useEffect(() => {
     const urlTopic = searchParams.get("topic");
-    if (urlTopic && session?.user && !isLoading) {
-      setTopic(urlTopic);
-      // Triggere automatisch die Lesson-Erstellung
-      const form = document.querySelector("form") as HTMLFormElement;
-      if (form) {
-        form.requestSubmit();
+    if (urlTopic && session?.user && !isLoading && !isPending) {
+      // Prüfe, ob Topic bereits verarbeitet wurde
+      if (processedTopics.current.has(urlTopic)) {
+        return; // Skip doppelte Verarbeitung
       }
+
+      processedTopics.current.add(urlTopic);
+      setTopic(urlTopic);
+      // Direkt API callen statt form.requestSubmit()
+      handleTopicSubmit(urlTopic);
     }
-  }, [searchParams, session, isLoading]);
+  }, [searchParams, session, isLoading, isPending]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
+  // Hilfsfunktion für direkten API-Call (nach Login)
+  const handleTopicSubmit = async (topicValue: string) => {
+    if (!session?.user || !topicValue.trim() || isLoading) return;
 
-    // Validierung
-    if (!topic.trim()) {
-      setError("Bitte gib ein Thema ein.");
-      return;
-    }
-
-    // Wenn nicht eingeloggt → Redirect zu /auth
-    if (!session?.user) {
-      // Speichere das Thema in sessionStorage für später
-      sessionStorage.setItem("pendingTopic", topic);
-      router.push("/auth");
-      return;
-    }
-
-    // User ist eingeloggt → Starte KI-Flow mit Phasen
     setIsLoading(true);
     setLoadingPhase("analyzing");
 
@@ -74,7 +65,7 @@ function HomeContent() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          topic: topic.trim(),
+          topic: topicValue.trim(),
           lessonType: lessonType,
         }),
       });
@@ -94,6 +85,11 @@ function HomeContent() {
       setLoadingPhase("finalizing");
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
+      // URL-Parameter clearen (verhindert Re-Trigger beim Zurück-Navigieren)
+      const url = new URL(window.location.href);
+      url.searchParams.delete("topic");
+      window.history.replaceState({}, "", url.pathname);
+
       // Erfolg → Weiterleitung zum Lesson-View
       router.push(`/lesson/${data.lessonId}`);
     } catch (err) {
@@ -102,6 +98,28 @@ function HomeContent() {
       setIsLoading(false);
       setLoadingPhase(null);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+
+    // Validierung
+    if (!topic.trim()) {
+      setError("Bitte gib ein Thema ein.");
+      return;
+    }
+
+    // Wenn nicht eingeloggt → Redirect zu /auth
+    if (!session?.user) {
+      // Speichere das Thema in sessionStorage für später
+      sessionStorage.setItem("pendingTopic", topic);
+      router.push("/auth");
+      return;
+    }
+
+    // User ist eingeloggt → Nutze die gemeinsame Logik
+    await handleTopicSubmit(topic);
   };
 
   return (

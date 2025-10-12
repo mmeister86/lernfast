@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { profileUpdateSchema } from "@/lib/profile.types";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag, revalidatePath } from "next/cache";
 import { Pool } from "pg";
 
 const pool = new Pool({
@@ -136,7 +137,11 @@ export async function POST(request: NextRequest) {
 
     const updatedUser = result.rows[0];
 
-    // 6. Erfolgreiche Response
+    // 6. Cache invalidieren
+    revalidateTag("users"); // Invalidiert alle gecachten User-Profile
+    revalidatePath("/dashboard/profile"); // Invalidiert Profil-Page
+
+    // 7. Erfolgreiche Response
     return NextResponse.json({
       success: true,
       user: updatedUser,

@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sanitizeMermaidCode } from "@/lib/utils";
+import { revalidateTag, revalidatePath } from "next/cache";
+import { getCachedLessons, getCachedLesson } from "@/lib/supabase/queries";
 import OpenAI from "openai";
 
 /**
@@ -287,7 +289,27 @@ Erstelle 3-5 Lernkarten zum angegebenen Thema. Für jede Karte entscheide intell
       );
     }
 
-    // 6. ERFOLGREICHE RESPONSE
+    // 6. CACHE INVALIDIERUNG
+    // Invalidiere Dashboard-Cache, damit neue Lesson sofort angezeigt wird
+    revalidateTag("lessons"); // Invalidiert alle gecachten Lessons
+    revalidatePath("/dashboard"); // Invalidiert Dashboard-Page
+
+    // 7. CACHE WARMING
+    // Befülle Cache direkt mit neuen Daten, damit der nächste Request schnell ist
+    try {
+      // Dashboard-Liste cachen
+      await getCachedLessons(userId);
+
+      // Lesson-Details cachen
+      await getCachedLesson(lesson.id, userId);
+
+      console.log(`✅ Cache warmed for user ${userId}, lesson ${lesson.id}`);
+    } catch (warmingError) {
+      // Cache Warming ist optional - bei Fehler einfach weitermachen
+      console.warn("⚠️ Cache warming failed (non-critical):", warmingError);
+    }
+
+    // 8. ERFOLGREICHE RESPONSE
     return NextResponse.json(
       {
         success: true,

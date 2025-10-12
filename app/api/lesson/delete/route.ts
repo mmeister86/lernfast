@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
+import { revalidateTag, revalidatePath } from "next/cache";
 
 /**
  * DELETE Lesson API Route
@@ -75,6 +76,11 @@ export async function POST(request: Request) {
     console.log(
       `Lesson ${lessonId} successfully deleted by user ${session.user.id}`
     );
+
+    // 5. Cache invalidieren
+    revalidateTag("lessons"); // Invalidiert alle gecachten Lessons
+    revalidatePath("/dashboard"); // Invalidiert Dashboard-Page
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Unexpected error in delete route:", error);

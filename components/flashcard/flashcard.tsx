@@ -25,12 +25,12 @@ type FlashcardProps = {
 export function Flashcard({ flashcard, isFlipped, onFlip }: FlashcardProps) {
   return (
     <div
-      className="relative w-full max-w-2xl cursor-pointer"
+      className="relative w-full max-w-5xl cursor-pointer"
       onClick={onFlip}
       style={{ perspective: "1000px" }}
     >
-      {/* Aspect Ratio Container (3:4) */}
-      <div className="aspect-[3/4] relative">
+      {/* Aspect Ratio Container (4:3) */}
+      <div className="aspect-[4/3] relative">
         {/* Flip Container */}
         <div
           className={cn(

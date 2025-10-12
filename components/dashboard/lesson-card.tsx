@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
 import type {
@@ -170,7 +171,7 @@ export function LessonCard({ lesson, onDelete }: LessonCardProps) {
               disabled={isDeleting}
               className="shrink-0"
             >
-              🗑️
+              <Trash2 className="h-5 w-5" />
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>

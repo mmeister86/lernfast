@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
-import { createServiceClient } from "@/lib/supabase/server";
+import { getCachedLesson } from "@/lib/supabase/queries";
 import { Navbar } from "@/components/navbar";
 import { FlashcardViewer } from "@/components/flashcard/flashcard-viewer";
 import type { LessonWithFlashcards } from "@/lib/lesson.types";
@@ -15,8 +15,9 @@ type PageProps = {
  * Zeigt eine einzelne Lesson mit allen zugehörigen Flashcards
  *
  * - Auth-Check: Nur eingeloggte User
- * - Ownership-Check: Nur eigene Lessons
+ * - Ownership-Check: Nur eigene Lessons (in getCachedLesson)
  * - 404 bei nicht existierender Lesson
+ * - Cache: 300 Sekunden (5 Minuten) - Flashcards sind unveränderlich
  */
 export default async function LessonPage({ params }: PageProps) {
   // Auth Check
@@ -31,32 +32,16 @@ export default async function LessonPage({ params }: PageProps) {
   // Params auflösen (Next.js 15 Promise-basiert)
   const { id } = await params;
 
-  // Load Lesson + Flashcards aus Supabase
-  const supabase = createServiceClient();
-
-  const { data: lesson, error } = await supabase
-    .from("lesson")
-    .select(
-      `
-      *,
-      flashcard(*)
-    `
-    )
-    .eq("id", id)
-    .single();
+  // Load Lesson + Flashcards mit gecachtem Query (5min Cache)
+  const { data: lesson, error } = await getCachedLesson(id, session.user.id);
 
   // 404 wenn Lesson nicht existiert
   if (error || !lesson) {
     notFound();
   }
 
-  // Ownership Check: Nur eigene Lessons anzeigen
-  if (lesson.user_id !== session.user.id) {
-    redirect("/dashboard");
-  }
-
-  // Type-Assertion für TypeScript
-  const lessonWithFlashcards = lesson as unknown as LessonWithFlashcards;
+  // Ownership Check wird bereits in getCachedLesson durchgeführt
+  const lessonWithFlashcards = lesson as LessonWithFlashcards;
 
   return (
     <>
@@ -72,4 +57,3 @@ export default async function LessonPage({ params }: PageProps) {
     </>
   );
 }
-
