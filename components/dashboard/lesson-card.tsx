@@ -12,22 +12,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
-
-type LessonStatus = "pending" | "processing" | "completed" | "failed";
-type LessonType = "micro_dose" | "deep_dive";
-
-type Lesson = {
-  id: string;
-  topic: string;
-  lessonType: LessonType;
-  status: LessonStatus;
-  createdAt: Date;
-  completedAt: Date | null;
-  flashcardCount: number;
-};
+import type { LessonStatus, LessonType, LessonWithCount } from "@/lib/lesson.types";
 
 type LessonCardProps = {
-  lesson: Lesson;
+  lesson: LessonWithCount;
 };
 
 const STATUS_CONFIG = {
@@ -66,9 +54,9 @@ const TYPE_CONFIG = {
 
 export function LessonCard({ lesson }: LessonCardProps) {
   const statusConfig = STATUS_CONFIG[lesson.status];
-  const typeConfig = TYPE_CONFIG[lesson.lessonType];
+  const typeConfig = TYPE_CONFIG[lesson.lesson_type];
 
-  const timeAgo = formatDistanceToNow(lesson.createdAt, {
+  const timeAgo = formatDistanceToNow(new Date(lesson.created_at), {
     addSuffix: true,
     locale: de,
   });
@@ -79,7 +67,7 @@ export function LessonCard({ lesson }: LessonCardProps) {
         <div className="flex gap-2 mb-3">
           {/* Status Badge */}
           <span
-            className={`inline-flex items-center gap-1 px-3 py-1 rounded-base border-2 text-xs font-heading ${statusConfig.color}`}
+            className={`inline-flex items-center gap-1 px-3 py-1 rounded-[15px] border-2 text-xs font-heading ${statusConfig.color}`}
           >
             <span>{statusConfig.icon}</span>
             {statusConfig.label}
@@ -87,7 +75,7 @@ export function LessonCard({ lesson }: LessonCardProps) {
 
           {/* Type Badge */}
           <span
-            className={`inline-flex items-center px-3 py-1 rounded-base border-2 text-xs font-heading ${typeConfig.color}`}
+            className={`inline-flex items-center px-3 py-1 rounded-[15px] border-2 text-xs font-heading ${typeConfig.color}`}
           >
             {typeConfig.label}
           </span>
@@ -103,10 +91,10 @@ export function LessonCard({ lesson }: LessonCardProps) {
         {lesson.status === "completed" && (
           <div className="flex items-center gap-2 text-sm">
             <span className="font-heading text-main text-lg">
-              {lesson.flashcardCount}
+              {lesson.flashcard_count}
             </span>
             <span className="text-foreground/70">
-              {lesson.flashcardCount === 1 ? "Flashcard" : "Flashcards"}
+              {lesson.flashcard_count === 1 ? "Flashcard" : "Flashcards"}
             </span>
           </div>
         )}

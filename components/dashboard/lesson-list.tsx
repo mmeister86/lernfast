@@ -1,48 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LessonCard } from "./lesson-card";
 import { Button } from "@/components/ui/button";
-
-// Mock-Daten für Lessons
-const MOCK_LESSONS = [
-  {
-    id: "1",
-    topic: "Quantum Computing Basics",
-    lessonType: "micro_dose" as const,
-    status: "completed" as const,
-    createdAt: new Date("2025-10-08T10:30:00"),
-    completedAt: new Date("2025-10-08T10:45:00"),
-    flashcardCount: 5,
-  },
-  {
-    id: "2",
-    topic: "React Server Components",
-    lessonType: "deep_dive" as const,
-    status: "completed" as const,
-    createdAt: new Date("2025-10-09T14:20:00"),
-    completedAt: new Date("2025-10-09T14:50:00"),
-    flashcardCount: 12,
-  },
-  {
-    id: "3",
-    topic: "TypeScript Advanced Types",
-    lessonType: "micro_dose" as const,
-    status: "processing" as const,
-    createdAt: new Date("2025-10-10T09:15:00"),
-    completedAt: null,
-    flashcardCount: 0,
-  },
-  {
-    id: "4",
-    topic: "Next.js App Router Deep Dive",
-    lessonType: "deep_dive" as const,
-    status: "pending" as const,
-    createdAt: new Date("2025-10-10T11:00:00"),
-    completedAt: null,
-    flashcardCount: 0,
-  },
-];
+import { createClient } from "@/lib/supabase/client";
+import type { LessonWithCount } from "@/lib/lesson.types";
 
 type LessonListProps = {
   userId: string;
@@ -52,9 +14,62 @@ export function LessonList({ userId }: LessonListProps) {
   const [filter, setFilter] = useState<"all" | "completed" | "processing">(
     "all"
   );
+  const [lessons, setLessons] = useState<LessonWithCount[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // TODO: Später durch echte Supabase-Query ersetzen
-  const lessons = MOCK_LESSONS;
+  // Lade Lessons aus Supabase
+  useEffect(() => {
+    async function loadLessons() {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const supabase = createClient();
+
+        // Query: Alle Lessons des Users + Flashcard-Anzahl
+        const { data, error: queryError } = await supabase
+          .from("lesson")
+          .select(
+            `
+            *,
+            flashcard(count)
+          `
+          )
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
+
+        if (queryError) {
+          console.error("Supabase query error:", queryError);
+          setError("Fehler beim Laden der Lerneinheiten.");
+          setIsLoading(false);
+          return;
+        }
+
+        // Transformiere Daten: Extrahiere Flashcard-Count
+        const lessonsWithCount: LessonWithCount[] =
+          data?.map((lesson: any) => ({
+            id: lesson.id,
+            user_id: lesson.user_id,
+            topic: lesson.topic,
+            lesson_type: lesson.lesson_type,
+            status: lesson.status,
+            created_at: lesson.created_at,
+            completed_at: lesson.completed_at,
+            flashcard_count: lesson.flashcard?.[0]?.count || 0,
+          })) || [];
+
+        setLessons(lessonsWithCount);
+      } catch (err) {
+        console.error("Unexpected error loading lessons:", err);
+        setError("Ein unerwarteter Fehler ist aufgetreten.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadLessons();
+  }, [userId]);
 
   const filteredLessons = lessons.filter((lesson) => {
     if (filter === "all") return true;
@@ -66,17 +81,27 @@ export function LessonList({ userId }: LessonListProps) {
 
   return (
     <div className="space-y-6">
+      {/* Error State */}
+      {error && (
+        <div className="p-6 border-4 border-[#FC5A46] bg-red-50 rounded-[15px] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <p className="text-lg font-extrabold text-black mb-2">⚠️ Fehler</p>
+          <p className="text-base font-medium text-black/80">{error}</p>
+        </div>
+      )}
+
       {/* Filter Tabs */}
       <div className="flex gap-3 flex-wrap">
         <Button
           variant={filter === "all" ? "default" : "neutral"}
           onClick={() => setFilter("all")}
+          disabled={isLoading}
         >
           Alle ({lessons.length})
         </Button>
         <Button
           variant={filter === "completed" ? "default" : "neutral"}
           onClick={() => setFilter("completed")}
+          disabled={isLoading}
         >
           Abgeschlossen (
           {lessons.filter((l) => l.status === "completed").length})
@@ -84,6 +109,7 @@ export function LessonList({ userId }: LessonListProps) {
         <Button
           variant={filter === "processing" ? "default" : "neutral"}
           onClick={() => setFilter("processing")}
+          disabled={isLoading}
         >
           In Bearbeitung (
           {
@@ -95,17 +121,32 @@ export function LessonList({ userId }: LessonListProps) {
         </Button>
       </div>
 
-      {/* Lessons Grid */}
-      {filteredLessons.length === 0 ? (
-        <div className="text-center py-16 border-2 border-dashed border-border rounded-base">
-          <p className="text-xl font-heading mb-2">Keine Lessons gefunden</p>
-          <p className="text-foreground/70">
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="bg-gray-50 border-4 border-black rounded-[15px] p-6 animate-pulse shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+            >
+              <div className="h-6 bg-[#FFC667] rounded-[15px] w-3/4 mb-4" />
+              <div className="h-4 bg-[#FB7DA8] rounded-[15px] w-1/2 mb-3" />
+              <div className="h-4 bg-[#00D9BE] rounded-[15px] w-full" />
+            </div>
+          ))}
+        </div>
+      ) : filteredLessons.length === 0 ? (
+        /* Empty State */
+        <div className="text-center py-16 border-4 border-dashed border-black rounded-[15px] bg-white">
+          <p className="text-xl font-extrabold mb-2">Keine Lessons gefunden</p>
+          <p className="text-base font-medium text-foreground/70">
             {filter === "all"
               ? "Erstelle deine erste Lesson auf der Startseite!"
               : `Keine ${filter === "completed" ? "abgeschlossenen" : "aktiven"} Lessons vorhanden.`}
           </p>
         </div>
       ) : (
+        /* Lessons Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredLessons.map((lesson) => (
             <LessonCard key={lesson.id} lesson={lesson} />

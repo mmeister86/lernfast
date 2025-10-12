@@ -9,12 +9,16 @@ import { GradientBackground } from "@/components/landing/gradient-background";
 import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
+import { cn } from "@/lib/utils";
 
 function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, isPending } = useSession();
   const [topic, setTopic] = useState("");
+  const [lessonType, setLessonType] = useState<"micro_dose" | "deep_dive">(
+    "micro_dose"
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,7 +64,7 @@ function HomeContent() {
         },
         body: JSON.stringify({
           topic: topic.trim(),
-          lessonType: "micro_dose", // Default: Micro-Dose für alle User
+          lessonType: lessonType,
         }),
       });
 
@@ -103,6 +107,47 @@ function HomeContent() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Lesson Type Selection */}
+            <div className="mb-8 flex gap-4 justify-center">
+              <button
+                type="button"
+                onClick={() => setLessonType("micro_dose")}
+                className={cn(
+                  "px-6 py-3 border-4 border-black rounded-[15px] font-extrabold transition-all",
+                  lessonType === "micro_dose"
+                    ? "bg-[#FFC667] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                    : "bg-white hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                )}
+              >
+                <div className="text-left">
+                  <div className="flex items-center gap-2">
+                    <span>⚡ Micro-Dose</span>
+                  </div>
+                  <p className="text-xs font-medium mt-1">
+                    3-5 Karten • Kostenlos
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLessonType("deep_dive")}
+                disabled={true}
+                className="px-6 py-3 border-4 border-black rounded-[15px] font-extrabold bg-gray-100 opacity-50 cursor-not-allowed"
+              >
+                <div className="text-left">
+                  <div className="flex items-center gap-2">
+                    <span>🚀 Deep Dive</span>
+                    <span className="text-xs bg-[#662CB7] text-white px-2 py-0.5 rounded-[15px]">
+                      Bald
+                    </span>
+                  </div>
+                  <p className="text-xs font-medium mt-1">
+                    10-15 Karten • Premium
+                  </p>
+                </div>
+              </button>
+            </div>
             <Input
               type="text"
               placeholder="Gib hier das Thema ein, das dich interessiert..."

@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 3D Flip Animation für Flashcards */
+@layer utilities {
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+  .transform-style-preserve-3d {
+    transform-style: preserve-3d;
+  }
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+}
+
 :root {
   --background: oklch(96.47% 0.0401 157.79);
   --secondary-background: oklch(100% 0 0);
