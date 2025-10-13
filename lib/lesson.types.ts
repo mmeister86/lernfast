@@ -7,6 +7,17 @@ export type LessonStatus = "pending" | "processing" | "completed" | "failed";
 export type LessonType = "micro_dose" | "deep_dive";
 
 /**
+ * Topic Suggestion für Multi-Stage Workflow
+ * Wird von /api/suggest-topics generiert
+ */
+export interface TopicSuggestion {
+  id: string;
+  title: string;
+  description: string;
+  emoji: string;
+}
+
+/**
  * Lesson Entity (Lerneinheit)
  * Eine Lesson enthält mehrere Flashcards
  */
@@ -14,6 +25,7 @@ export interface Lesson {
   id: string;
   user_id: string;
   topic: string;
+  refined_topic?: string | null; // NEU: User-selected refined topic from suggestions
   lesson_type: LessonType;
   status: LessonStatus;
   created_at: string; // ISO 8601 timestamp string von Supabase
@@ -23,38 +35,58 @@ export interface Lesson {
 /**
  * Visualisierungstypen für Flashcards
  */
-export type VisualizationType = "thesys" | "mermaid";
+export type VisualizationType = "thesys" | "d3";
 
 /**
- * Mermaid Diagramm-Typen
+ * D3 Layout-Typen für Graph-Visualisierungen
  */
-export type MermaidDiagramType =
-  | "flowchart"
-  | "mindmap"
-  | "sequence"
-  | "class"
-  | "state"
-  | "er"
-  | "gantt"
-  | "pie"
-  | "quadrant"
-  | "timeline";
+export type D3LayoutType =
+  | "force-directed" // Für Concept Maps mit freier Anordnung
+  | "hierarchical" // Für Tree-Strukturen (Top-Down)
+  | "radial" // Für zentrale Konzepte mit radialen Verbindungen
+  | "cluster"; // Für gruppierte Themen
 
 /**
- * Mermaid Visualisierung mit Code und optional gecachtem SVG
+ * D3 Node für Graph-Visualisierung
  */
-export interface MermaidVisualization {
-  diagramType: MermaidDiagramType;
-  code: string; // Mermaid syntax code
-  svg?: string; // Serverseitig generiertes SVG (optional cached)
+export interface D3Node {
+  id: string;
+  label: string;
+  type: "concept" | "detail" | "example" | "definition";
+  color?: string; // Optional: Custom color override
 }
 
 /**
- * Generische Visualisierung - kann entweder Thesys oder Mermaid sein
+ * D3 Link (Verbindung) zwischen zwei Nodes
+ */
+export interface D3Link {
+  source: string; // Node ID
+  target: string; // Node ID
+  label?: string; // Optional edge label
+  strength?: number; // Optional: 0-1 für Force-Simulation
+}
+
+/**
+ * D3 Visualisierung mit Nodes, Links und Layout-Konfiguration
+ */
+export interface D3Visualization {
+  layout: D3LayoutType;
+  nodes: D3Node[];
+  links: D3Link[];
+  config?: {
+    width?: number;
+    height?: number;
+    nodeRadius?: number;
+    linkDistance?: number;
+  };
+}
+
+/**
+ * Generische Visualisierung - kann entweder Thesys oder D3 sein
  */
 export interface Visualization {
   type: VisualizationType;
-  data: ThesysJSON | MermaidVisualization;
+  data: ThesysJSON | D3Visualization;
 }
 
 /**
@@ -68,6 +100,7 @@ export interface Flashcard {
   id: string;
   lesson_id: string;
   question: string;
+  answer?: string | null; // NEU: Explanatory text content (150-300 words)
   thesys_json?: ThesysJSON | null; // Legacy field - wird bald entfernt
   visualizations?: Visualization[]; // Neues Feld - Array von Visualisierungen
   is_learned: boolean;

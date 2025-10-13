@@ -2,9 +2,12 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sanitizeMermaidCode } from "@/lib/utils";
 import { revalidateTag, revalidatePath } from "next/cache";
-import { getCachedLessons, getCachedLesson } from "@/lib/supabase/queries";
+import {
+  getCachedLessons,
+  getCachedLesson,
+  getCachedUserProfile,
+} from "@/lib/supabase/queries";
 import OpenAI from "openai";
 
 /**
@@ -35,9 +38,22 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
 
+    // Profildaten für Personalisierung laden
+    const { data: userProfile } = await getCachedUserProfile(userId);
+
+    // Default-Werte für fehlende Profildaten
+    const profileContext = {
+      experienceLevel: userProfile?.experienceLevel || "beginner",
+      preferredDifficulty: userProfile?.preferredDifficulty || "medium",
+      learningGoals: userProfile?.learningGoals || null,
+      age: userProfile?.age || null,
+      language: userProfile?.language || "de",
+      preferredCardCount: userProfile?.preferredCardCount || 5,
+    };
+
     // 2. INPUT VALIDIERUNG
     const body = await request.json();
-    const { topic, lessonType } = body;
+    const { topic, refinedTopic, lessonType } = body;
 
     if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
       return NextResponse.json(
@@ -52,6 +68,13 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // refinedTopic ist optional (kann null sein)
+    const targetTopic = refinedTopic || topic.trim();
+
+    // Kartenanzahl: Micro Dose = 3-5 (fix), Deep Dive = User-Präferenz
+    const cardCount =
+      lessonType === "micro_dose" ? "3-5" : profileContext.preferredCardCount;
 
     // TODO: Premium-Check für Deep Dive
     // if (lessonType === "deep_dive" && !session.user.isPremium) {
@@ -86,6 +109,7 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: userId,
         topic: topic.trim(),
+        refined_topic: refinedTopic || null,
         lesson_type: lessonType,
         status: "pending",
       })
@@ -100,7 +124,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. OPENAI KI-GENERIERUNG
+    // 5. MULTI-STAGE KI-GENERIERUNG (Research + Strukturierung)
     try {
       // Update Status zu 'processing'
       await supabase
@@ -111,78 +135,169 @@ export async function POST(request: NextRequest) {
       // OpenAI Client initialisieren
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-      // Prompt Engineering für intelligente Visualisierungs-Auswahl
-      const systemPrompt = `Du bist ein Experte für didaktisch aufbereitete Lernkarten mit intelligenter Visualisierungs-Auswahl.
+      // ============================================
+      // STAGE 1: RESEARCH - Fakten & Konzepte sammeln
+      // ============================================
 
-Erstelle 3-5 Lernkarten zum angegebenen Thema. Für jede Karte entscheide intelligent, welche Visualisierung am besten passt:
+      const researchModel =
+        lessonType === "micro_dose"
+          ? process.env.OPENAI_MICRO_DOSE_MODEL || "gpt-4.1-mini"
+          : process.env.OPENAI_DEEP_DIVE_MODEL || "o4-mini-deep-research";
 
-**Visualisierungs-Richtlinien:**
+      const researchSystemPrompt = `Du bist ein Recherche-Experte, der tiefgehende, strukturierte Informationen zu Lernthemen sammelt.
 
-1. **Thesys (Concept Maps)** - Für konzeptionelle Zusammenhänge:
-   - Abstrakte Begriffe und Definitionen
-   - Hierarchische Wissensstrukturen
-   - Beziehungen zwischen Konzepten
-   - Beispiel: "Was ist Machine Learning?" → Nodes für Konzepte wie "Supervised", "Unsupervised"
+**AUFGABE:**
+Recherchiere umfassend zum angegebenen Thema und sammle:
+1. Kernfakten und Definitionen
+2. Wichtige Konzepte und Zusammenhänge
+3. Praktische Beispiele
+4. Relevante Details für tiefes Verständnis
 
-2. **Mermaid Flowchart** - Für Prozesse und Abläufe:
-   - Schritt-für-Schritt Anleitungen
-   - Algorithmen und Entscheidungsbäume
-   - Workflows und Pipelines
-   - Beispiel: "HTTP Request Lifecycle" → Flowchart mit Request → Server → Response
+**PERSONALISIERUNG:**
+- Erfahrungslevel: ${profileContext.experienceLevel}
+- Schwierigkeitsgrad: ${profileContext.preferredDifficulty}
+${profileContext.age ? `- Alter: ${profileContext.age} Jahre` : ""}
+${
+  profileContext.learningGoals
+    ? `- Lernziele: ${profileContext.learningGoals}`
+    : ""
+}
 
-3. **Mermaid Mindmap** - Für Themenübersichten:
-   - Brainstorming-Strukturen
-   - Themencluster
-   - Kategorisierungen
-   - Beispiel: "JavaScript Frameworks" → Zentrum "JS", Äste "React", "Vue", "Angular"
+Passe Tiefe und Komplexität entsprechend an.
 
-4. **Mermaid Sequence** - Für Interaktionen:
-   - API-Kommunikation
-   - Zeitliche Abläufe zwischen Akteuren
-   - Message Passing
-   - Beispiel: "OAuth Flow" → User → App → Auth Server → App → User
+**OUTPUT-FORMAT (JSON):**
+{
+  "topic": "Thema",
+  "facts": ["Fakt 1", "Fakt 2", ...],
+  "concepts": [
+    {
+      "name": "Konzept-Name",
+      "description": "Erklärung",
+      "relationships": ["Beziehung zu anderen Konzepten"]
+    }
+  ],
+  "examples": ["Beispiel 1", "Beispiel 2", ...],
+  "keyTakeaways": ["Hauptpunkt 1", "Hauptpunkt 2", ...]
+}`;
 
-5. **Mermaid Class/ER** - Für Strukturen:
-   - Datenmodelle
-   - OOP-Klassendiagramme
-   - Datenbankschemas
-   - Beispiel: "E-Commerce DB Schema" → User --|> Order --|> Product
+      const researchCompletion = await openai.chat.completions.create({
+        model: researchModel,
+        messages: [
+          { role: "system", content: researchSystemPrompt },
+          {
+            role: "user",
+            content: `Recherchiere umfassend zum Thema: ${targetTopic}
 
-6. **Beide (Thesys + Mermaid)** - Für komplexe Themen:
-   - Thesys für Konzepte + Flowchart für Prozess
-   - Beispiel: "REST API Design" → Thesys (Prinzipien) + Flowchart (Request Handling)
+Anzahl der zu erstellenden Lernkarten: ${cardCount}
+Sammle genug Material für hochwertige, tiefgehende Lernkarten.`,
+          },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      });
 
-**Output Format (JSON):**
+      const researchData = JSON.parse(
+        researchCompletion.choices[0].message.content || "{}"
+      );
+
+      console.log(
+        `✅ Research completed for topic: ${targetTopic} (${researchModel})`
+      );
+
+      // ============================================
+      // STAGE 2: STRUCTURE - D3-Visualisierungen erstellen
+      // ============================================
+
+      const structureModel =
+        process.env.OPENAI_STRUCTURE_MODEL || "gpt-4.1-mini";
+
+      const structureSystemPrompt = `Du bist ein Experte für didaktisch aufbereitete Lernkarten mit interaktiven D3.js-Graph-Visualisierungen.
+
+**PERSONALISIERUNG:**
+Du erhältst Profildaten des Nutzers und musst die Lernkarten entsprechend anpassen:
+
+- **Erfahrungslevel**: Passe Komplexität und Vokabular an (beginner = einfache Sprache, advanced = Fachbegriffe)
+- **Schwierigkeitsgrad**: Bestimmt Tiefe der Erklärungen (easy = Grundlagen, hard = Details & Edge Cases)
+- **Alter**: Beeinflusst Beispiele und Ansprache (Kinder = spielerisch, Erwachsene = professionell)
+- **Lernziele**: Wenn angegeben, fokussiere auf diese Ziele
+- **Kartenanzahl**: Erstelle exakt die angeforderte Anzahl
+
+**VISUALISIERUNGS-STRATEGIE:**
+
+Erstelle für jede Lernkarte eine interaktive Graph-Visualisierung mit D3.js. Wähle das passende Layout basierend auf dem Inhalt:
+
+1. **Force-Directed Layout** - Für Konzept-Maps mit vielen Beziehungen:
+   - Beispiel: "Machine Learning Konzepte" → Zentrale Nodes (Supervised, Unsupervised) mit verzweigten Details
+   - Nutze Links mit Labels für "ist-ein", "verwendet", "führt-zu" Beziehungen
+   - Perfekt für: Abstrakte Konzepte, Definitionen, vernetzte Wissensstrukturen
+
+2. **Hierarchical Layout** - Für klar strukturierte Top-Down-Informationen:
+   - Beispiel: "HTTP Request Lifecycle" → Root (Client) → DNS → TCP → Request → Response
+   - Perfekt für: Prozess-Flows, Abhängigkeiten, Schritt-für-Schritt Anleitungen
+
+3. **Radial Layout** - Für zentrale Konzepte mit radialen Aspekten:
+   - Beispiel: "React Hooks" → Zentrum (React), radiale Äste (useState, useEffect, etc.)
+   - Perfekt für: Taxonomien, Feature-Übersichten, zentrale Themen mit Unterkategorien
+
+4. **Cluster Layout** - Für gruppierte Themen-Kategorien:
+   - Beispiel: "JavaScript Frameworks" → Cluster (React, Vue, Angular) mit Sub-Nodes
+   - Perfekt für: Vergleiche, kategorisierte Listen, Gruppenstrukturen
+
+**OUTPUT-FORMAT (JSON):**
 {
   "cards": [
     {
-      "question": "Wie funktioniert ein HTTP Request?",
+      "question": "Was sind die Haupttypen von Machine Learning?",
+      "answer": "Ausführlicher erklärender Text (150-300 Wörter), der das Konzept detailliert erläutert. Nutze klare Struktur mit Absätzen. Keine Aufzählungen oder Bullet Points - fließender Text.",
       "visualizations": [
         {
-          "type": "mermaid",
+          "type": "d3",
           "data": {
-            "diagramType": "flowchart",
-            "code": "flowchart TD\\n  A[Client] --> B[DNS Lookup]\\n  B --> C[TCP Connection]\\n  C --> D[HTTP Request]\\n  D --> E[Server Processing]\\n  E --> F[HTTP Response]"
+            "layout": "force-directed",
+            "nodes": [
+              { "id": "1", "label": "Machine Learning", "type": "concept" },
+              { "id": "2", "label": "Supervised Learning", "type": "detail" },
+              { "id": "3", "label": "Unsupervised Learning", "type": "detail" },
+              { "id": "4", "label": "Classification", "type": "example" },
+              { "id": "5", "label": "Regression", "type": "example" }
+            ],
+            "links": [
+              { "source": "1", "target": "2", "label": "Typ" },
+              { "source": "1", "target": "3", "label": "Typ" },
+              { "source": "2", "target": "4", "label": "umfasst" },
+              { "source": "2", "target": "5", "label": "umfasst" }
+            ],
+            "config": {
+              "nodeRadius": 50,
+              "linkDistance": 120
+            }
           }
         }
       ]
     },
     {
-      "question": "Was sind die REST Prinzipien?",
+      "question": "Wie läuft ein HTTP Request ab?",
+      "answer": "Ausführlicher erklärender Text (150-300 Wörter) für dieses Konzept. Fließender, strukturierter Text ohne Bullet Points.",
       "visualizations": [
         {
-          "type": "thesys",
+          "type": "d3",
           "data": {
+            "layout": "hierarchical",
             "nodes": [
-              { "id": "1", "label": "REST", "type": "concept" },
-              { "id": "2", "label": "Stateless", "type": "detail" },
-              { "id": "3", "label": "Cacheable", "type": "detail" }
+              { "id": "1", "label": "Client", "type": "concept" },
+              { "id": "2", "label": "DNS Lookup", "type": "detail" },
+              { "id": "3", "label": "TCP Verbindung", "type": "detail" },
+              { "id": "4", "label": "HTTP Request", "type": "detail" },
+              { "id": "5", "label": "Server Verarbeitung", "type": "detail" },
+              { "id": "6", "label": "HTTP Response", "type": "example" }
             ],
-            "edges": [
-              { "from": "1", "to": "2", "label": "erfordert" },
-              { "from": "1", "to": "3", "label": "unterstützt" }
-            ],
-            "layout": "hierarchical"
+            "links": [
+              { "source": "1", "target": "2" },
+              { "source": "2", "target": "3" },
+              { "source": "3", "target": "4" },
+              { "source": "4", "target": "5" },
+              { "source": "5", "target": "6" }
+            ]
           }
         }
       ]
@@ -190,65 +305,119 @@ Erstelle 3-5 Lernkarten zum angegebenen Thema. Für jede Karte entscheide intell
   ]
 }
 
-**Wichtige Regeln:**
-- Verwende IMMER deutsche Sprache für Fragen und Labels
-- Mermaid Code MUSS valide Syntax haben (keine Tippfehler!)
-- Newlines in Mermaid Code als \\n schreiben (escaped!)
-- Mindestens 1 Visualisierung pro Karte, maximal 2 (Thesys + Mermaid)
-- Wähle die Visualisierung basierend auf dem Lerninhalt intelligent aus
-- Bei Prozessen: Flowchart, bei Konzepten: Thesys, bei Interaktionen: Sequence
+**WICHTIGE REGELN:**
+- Jede Karte MUSS ein "answer"-Feld mit 150-300 Wörtern erklärendem Text haben
+- Jede Karte MUSS genau eine D3-Visualisierung haben
+- **CARD 1 (Übersicht)**: MUSS IMMER Radial Layout verwenden mit 4-6 Sub-Nodes für Gesamtüberblick
+- **CARDS 2-X**: Wähle abwechslungsreiche Layouts basierend auf Inhalt (max 2x dasselbe Layout)
+- **Answer-Text**: Fließender, strukturierter Text ohne Bullet Points oder Aufzählungen
+- Nutze aussagekräftige Node-Labels (kurz, prägnant, max. 3-4 Wörter)
+- Links sollten Labels haben, die die Beziehung beschreiben (optional bei hierarchical)
+- Node-Types:
+  * "concept" (Hauptkonzept, Peach-Farbe)
+  * "detail" (Details, Weiß)
+  * "example" (Beispiele, Pink)
+  * "definition" (Definitionen, Lila)
+- Deutsche Sprache für alle Labels, Fragen und Antworten
+- Minimum 3 Nodes, Maximum 15 Nodes pro Visualisierung
+- Node-IDs MÜSSEN eindeutig sein und in Links korrekt referenziert werden
+- Bei hierarchical/radial/cluster: Links bilden Baum-Struktur (ein Root-Node)`;
 
-**Mermaid Syntax-Regeln (KRITISCH):**
-- IMMER Anführungszeichen um Node-Labels setzen: A["Label mit Text"]
-- Besonders bei Sonderzeichen: Klammern (), Bindestriche -, Doppelpunkte :, Kommata ,
-- Beispiel FALSCH: A --> B[Next.js (React)]
-- Beispiel RICHTIG: A --> B["Next.js (React)"]
-- Auch bei einfachen Labels sicher: A["Start"] --> B["Ende"]`;
-
-      // OpenAI API Call
-      const completion = await openai.chat.completions.create({
-        model: process.env.OPENAI_MICRO_DOSE_MODEL || "gpt-4o-mini",
+      // Structure API Call mit Research-Daten
+      const structureCompletion = await openai.chat.completions.create({
+        model: structureModel,
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Thema: ${topic.trim()}` },
+          { role: "system", content: structureSystemPrompt },
+          {
+            role: "user",
+            content: `Basierend auf den folgenden Recherche-Ergebnissen, erstelle ${cardCount} Lernkarten mit D3-Visualisierungen.
+
+**RESEARCH-DATEN:**
+${JSON.stringify(researchData, null, 2)}
+
+**Nutzer-Profil:**
+- Erfahrungslevel: ${profileContext.experienceLevel}
+- Gewünschter Schwierigkeitsgrad: ${profileContext.preferredDifficulty}
+${profileContext.age ? `- Alter: ${profileContext.age} Jahre` : ""}
+${
+  profileContext.learningGoals
+    ? `- Lernziele: ${profileContext.learningGoals}`
+    : ""
+}
+- Anzahl Karten: ${cardCount}
+- Sprache: ${
+              profileContext.language === "de"
+                ? "Deutsch"
+                : profileContext.language
+            }
+
+**WICHTIG:**
+- Card 1 = IMMER Radial Layout für Themenüberblick
+- Cards 2-${cardCount} = Abwechslungsreiche Layouts (max 2x dasselbe)
+
+Erstelle bitte hochwertige Lernkarten basierend auf den Research-Daten.`,
+          },
         ],
         response_format: { type: "json_object" },
       });
 
       // JSON Response parsen
       const flashcardsData = JSON.parse(
-        completion.choices[0].message.content || "{}"
+        structureCompletion.choices[0].message.content || "{}"
       );
+
+      console.log(
+        `✅ Structure completed: ${
+          flashcardsData.cards?.length || 0
+        } cards (${structureModel})`
+      );
+
+      // Validiere Layout-Verteilung
+      if (flashcardsData.cards && Array.isArray(flashcardsData.cards)) {
+        const layoutCounts: Record<string, number> = {};
+
+        flashcardsData.cards.forEach((card: any, index: number) => {
+          const layout = card.visualizations?.[0]?.data?.layout;
+          if (layout) {
+            layoutCounts[layout] = (layoutCounts[layout] || 0) + 1;
+          }
+
+          // Warnung wenn Card 1 nicht radial ist
+          if (index === 0 && layout !== "radial") {
+            console.warn(
+              `⚠️ Card 1 sollte Radial Layout haben, hat aber: ${layout}`
+            );
+          }
+        });
+
+        // Warnung wenn ein Layout >2x vorkommt (außer radial bei nur 1 Card)
+        const hasExcessiveLayout = Object.entries(layoutCounts).some(
+          ([layout, count]) => {
+            if (layout === "radial" && flashcardsData.cards.length === 1)
+              return false;
+            return count > 2;
+          }
+        );
+
+        if (hasExcessiveLayout) {
+          console.warn(`⚠️ Layout-Verteilung nicht optimal:`, layoutCounts);
+        } else {
+          console.log(`✅ Layout-Verteilung OK:`, layoutCounts);
+        }
+      }
 
       if (!flashcardsData.cards || !Array.isArray(flashcardsData.cards)) {
         throw new Error("Ungültiges OpenAI Response Format");
       }
 
-      // Verarbeite jede Flashcard und speichere Visualisierungen
-      // Mermaid-Code wird clientseitig gerendert (kein serverseitiges SVG mehr)
-      const flashcardInserts = flashcardsData.cards.map((card: any) => {
-        // Sanitize alle Mermaid-Visualisierungen
-        const sanitizedVisualizations = (card.visualizations || []).map(
-          (viz: any) => {
-            if (viz.type === "mermaid" && viz.data?.code) {
-              return {
-                ...viz,
-                data: {
-                  ...viz.data,
-                  code: sanitizeMermaidCode(viz.data.code),
-                },
-              };
-            }
-            return viz;
-          }
-        );
-
-        return {
-          lesson_id: lesson.id,
-          question: card.question,
-          visualizations: sanitizedVisualizations,
-        };
-      });
+      // Verarbeite jede Flashcard und speichere Visualisierungen + Answer-Text
+      // D3-Daten werden direkt gespeichert (keine Sanitization nötig)
+      const flashcardInserts = flashcardsData.cards.map((card: any) => ({
+        lesson_id: lesson.id,
+        question: card.question,
+        answer: card.answer || null,
+        visualizations: card.visualizations || [],
+      }));
 
       const { error: flashcardError } = await supabase
         .from("flashcard")

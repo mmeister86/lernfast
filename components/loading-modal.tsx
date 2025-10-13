@@ -4,7 +4,12 @@ import React, { useState, useEffect } from "react";
 import { HamsterSpinner } from "@/components/ui/hamster-spinner";
 import { cn } from "@/lib/utils";
 
-type LoadingPhase = "analyzing" | "generating" | "finalizing";
+type LoadingPhase =
+  | "suggesting"
+  | "analyzing"
+  | "researching"
+  | "structuring"
+  | "finalizing";
 
 interface LoadingModalProps {
   isOpen: boolean;
@@ -15,6 +20,13 @@ interface LoadingModalProps {
  * Humorvolle Phase-Nachrichten für den Ladebildschirm
  */
 const phaseMessages: Record<LoadingPhase, string[]> = {
+  suggesting: [
+    "Hamster sucht passende Themen...",
+    "🐹 Hmm, welche Aspekte könnten interessant sein?",
+    "Themenvielfalt wird durchforstet...",
+    "Kreative Vorschläge werden entwickelt...",
+    "💡 Gleich hast du eine tolle Auswahl!",
+  ],
   analyzing: [
     "Das Gehirn denkt intensiv nach...",
     "🧠 Hmm, sehr interessant!",
@@ -22,12 +34,19 @@ const phaseMessages: Record<LoadingPhase, string[]> = {
     "Wissen wird analysiert und sortiert...",
     "💭 Aha! Das wird genial!",
   ],
-  generating: [
-    "Kreative Synapsen feuern!",
-    "🎨 Das Gehirn malt Lernkarten!",
-    "Ideen sprudeln nur so heraus...",
-    "Kognitive Explosion im Gange!",
-    "⚡ Gleich hast du's schwarz auf weiß!",
+  researching: [
+    "Hamster recherchiert fleißig...",
+    "📚 Fakten werden gesammelt!",
+    "Tief in der Wissensdatenbank graben...",
+    "Spannende Details werden entdeckt!",
+    "🔬 Qualitätsrecherche läuft!",
+  ],
+  structuring: [
+    "Hamster erstellt Visualisierungen...",
+    "🎨 Graphen werden gezeichnet!",
+    "Strukturen nehmen Form an...",
+    "Verbindungen werden visualisiert...",
+    "✨ Bald wird alles klar und übersichtlich!",
   ],
   finalizing: [
     "Fast geschafft!",
@@ -120,13 +139,25 @@ export function LoadingModal({ isOpen, phase }: LoadingModalProps) {
               <div
                 className={cn(
                   "w-3 h-3 rounded-full border-2 border-black transition-all duration-300",
-                  phase === "analyzing" ? "bg-[#FFC667]" : "bg-white"
+                  phase === "suggesting" ? "bg-[#FFC667]" : "bg-white"
                 )}
               />
               <div
                 className={cn(
                   "w-3 h-3 rounded-full border-2 border-black transition-all duration-300",
-                  phase === "generating" ? "bg-[#FB7DA8]" : "bg-white"
+                  phase === "analyzing" ? "bg-[#FB7DA8]" : "bg-white"
+                )}
+              />
+              <div
+                className={cn(
+                  "w-3 h-3 rounded-full border-2 border-black transition-all duration-300",
+                  phase === "researching" ? "bg-[#662CB7]" : "bg-white"
+                )}
+              />
+              <div
+                className={cn(
+                  "w-3 h-3 rounded-full border-2 border-black transition-all duration-300",
+                  phase === "structuring" ? "bg-[#0CBCD7]" : "bg-white"
                 )}
               />
               <div
@@ -148,10 +179,14 @@ export function LoadingModal({ isOpen, phase }: LoadingModalProps) {
  */
 function getPhaseTitleEmoji(phase: LoadingPhase): string {
   switch (phase) {
+    case "suggesting":
+      return "💡 Suche Themen...";
     case "analyzing":
       return "🔍 Analysiere...";
-    case "generating":
-      return "✨ Erstelle Karten...";
+    case "researching":
+      return "📚 Recherchiere...";
+    case "structuring":
+      return "🎨 Strukturiere...";
     case "finalizing":
       return "🎉 Fast fertig!";
   }

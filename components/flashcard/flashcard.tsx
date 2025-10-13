@@ -5,9 +5,9 @@ import type {
   Flashcard as FlashcardType,
   ThesysJSON,
   Visualization,
-  MermaidVisualization,
+  D3Visualization,
 } from "@/lib/lesson.types";
-import { MermaidVisualizationComponent } from "./mermaid-visualization";
+import { D3VisualizationComponent } from "./d3-visualization";
 
 type FlashcardProps = {
   flashcard: FlashcardType;
@@ -70,17 +70,31 @@ export function Flashcard({ flashcard, isFlipped, onFlip }: FlashcardProps) {
               transform: "rotateY(180deg)",
             }}
           >
-            {/* Neues Visualisierungs-System */}
-            {flashcard.visualizations && flashcard.visualizations.length > 0 ? (
-              <VisualizationRenderer
-                visualizations={flashcard.visualizations}
-              />
-            ) : flashcard.thesys_json ? (
-              // Legacy Fallback für alte Flashcards
-              <ThesysVisualization thesysJson={flashcard.thesys_json} />
-            ) : (
-              <PlainTextFallback question={flashcard.question} />
-            )}
+            <div className="space-y-6">
+              {/* Answer Text */}
+              {flashcard.answer && (
+                <div className="bg-white border-4 border-black rounded-[15px] p-6">
+                  <p className="text-lg font-medium text-black leading-relaxed whitespace-pre-wrap">
+                    {flashcard.answer}
+                  </p>
+                </div>
+              )}
+
+              {/* Visualisierungen */}
+              {flashcard.visualizations &&
+              flashcard.visualizations.length > 0 ? (
+                <VisualizationRenderer
+                  visualizations={flashcard.visualizations}
+                />
+              ) : flashcard.thesys_json ? (
+                // Legacy Fallback für alte Flashcards
+                <ThesysVisualization thesysJson={flashcard.thesys_json} />
+              ) : (
+                !flashcard.answer && (
+                  <PlainTextFallback question={flashcard.question} />
+                )
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -145,7 +159,7 @@ function ThesysVisualization({ thesysJson }: { thesysJson: ThesysJSON }) {
 }
 
 /**
- * Renderer für alle Visualisierungen (Thesys + Mermaid)
+ * Renderer für alle Visualisierungen (Thesys + D3)
  */
 function VisualizationRenderer({
   visualizations,
@@ -156,12 +170,12 @@ function VisualizationRenderer({
     <div className="text-black space-y-6">
       {visualizations.map((viz, idx) => (
         <div key={idx}>
-          {viz.type === "thesys" ? (
-            <ThesysVisualization thesysJson={viz.data as ThesysJSON} />
-          ) : viz.type === "mermaid" ? (
-            <MermaidVisualizationComponent
-              mermaidData={viz.data as MermaidVisualization}
+          {viz.type === "d3" ? (
+            <D3VisualizationComponent
+              visualization={viz.data as D3Visualization}
             />
+          ) : viz.type === "thesys" ? (
+            <ThesysVisualization thesysJson={viz.data as ThesysJSON} />
           ) : null}
         </div>
       ))}

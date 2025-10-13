@@ -26,7 +26,7 @@
 - **TypeScript:** v5
 - **Styling:** Tailwind CSS mit Neobrutalismus-Theme
 - **UI-Komponenten:** Custom Neobrutalism UI (components/ui/)
-- **Visualisierung:** Thesys/C1 (geplant für Graphen/Mindmaps in Flashcards)
+- **Visualisierung:** D3.js v7 (interaktive Graph-Visualisierungen für Flashcards)
 
 ### Backend & Services
 
@@ -138,8 +138,8 @@ completed_at TIMESTAMP
 id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 lesson_id UUID REFERENCES lesson(id) ON DELETE CASCADE
 question TEXT NOT NULL
-thesys_json JSONB -- LEGACY: Strukturierter JSON-Output für Thesys/C1 Visualisierung
-visualizations JSONB DEFAULT '[]'::jsonb -- NEU: Array von Visualisierungen (Thesys + Mermaid)
+thesys_json JSONB -- LEGACY: Strukturierter JSON-Output (alte Flashcards)
+visualizations JSONB DEFAULT '[]'::jsonb -- NEU: Array von D3.js-Visualisierungen
 is_learned BOOLEAN DEFAULT FALSE
 created_at TIMESTAMP DEFAULT NOW()
 ```
@@ -149,19 +149,18 @@ created_at TIMESTAMP DEFAULT NOW()
 ```json
 [
   {
-    "type": "thesys",
+    "type": "d3",
     "data": {
-      "nodes": [...],
-      "edges": [...],
-      "layout": "hierarchical"
-    }
-  },
-  {
-    "type": "mermaid",
-    "data": {
-      "diagramType": "flowchart",
-      "code": "flowchart TD\n  A --> B",
-      "svg": "<svg>...</svg>"  // Optional: Gecachtes SVG
+      "layout": "force-directed",
+      "nodes": [
+        { "id": "1", "label": "Konzept", "type": "concept" },
+        { "id": "2", "label": "Detail", "type": "detail" }
+      ],
+      "links": [{ "source": "1", "target": "2", "label": "erklärt" }],
+      "config": {
+        "nodeRadius": 50,
+        "linkDistance": 120
+      }
     }
   }
 ]
@@ -373,7 +372,7 @@ lernfast/
 - [ ] Asynchrone KI-Verarbeitung + E-Mail-Benachrichtigung bei Fertigstellung
 - [ ] Spaced Repetition-Algorithmus (optimierte Wiederholungsintervalle)
 - [ ] Audio-Zusammenfassungen (TTS für Flashcards)
-- [ ] Thesys/C1 Integration für visuelle Graphen/Mindmaps
+- [x] D3.js Integration für interaktive Graphen (Branch: d3js)
 - [ ] Topic-basiertes Caching (mehrere User teilen Flashcards)
 - [ ] Edge Functions für globale Performance
 
@@ -456,210 +455,178 @@ Resend E-Mail-Benachrichtigung
 
 ---
 
-## Mermaid.js Integration (Intelligente Visualisierungs-Auswahl)
+## D3.js Integration (Interaktive Graph-Visualisierungen)
 
-**Status:** ✅ Clientseitiges Rendering implementiert (2025-10-12)
+**Status:** ✅ Vollständig implementiert im Branch `d3js` (2025-10-13)
 
 ### Übersicht
 
-Die KI wählt basierend auf dem Lerninhalt intelligent zwischen verschiedenen Visualisierungstypen:
+Interaktive Graph-Visualisierungen mit D3.js v7 für alle Flashcards. Die KI wählt das optimale Layout basierend auf dem Lerninhalt:
 
-1. **Thesys (Concept Maps)** - Für konzeptionelle Zusammenhänge
-2. **Mermaid Flowchart** - Für Prozesse und Abläufe
-3. **Mermaid Mindmap** - Für Themenübersichten
-4. **Mermaid Sequence** - Für Interaktionen und Kommunikation
-5. **Mermaid Class/ER** - Für Strukturen und Datenmodelle
-6. **Beide (Thesys + Mermaid)** - Für komplexe Themen
+1. **Force-Directed** - Interaktive Concept Maps mit Drag & Drop
+2. **Hierarchical** - Top-Down Tree-Strukturen für Prozesse
+3. **Radial** - Zentrale Konzepte mit radialen Verbindungen
+4. **Cluster** - Gruppierte Themen-Kategorien
 
-### Architektur (Clientseitiges Rendering)
+### Architektur (Clientseitiges D3.js Rendering)
 
 ```
 OpenAI LLM
-    ↓ (wählt Visualisierung basierend auf Inhalt)
-Flashcard mit visualizations Array
+    ↓ (wählt D3-Layout basierend auf Inhalt)
+Flashcard mit D3-Visualisierung (nodes, links, layout)
     ↓
-Speichere in Datenbank (nur Mermaid-Code, kein SVG)
+Speichere in Datenbank (JSON-Struktur)
     ↓
 Browser lädt Flashcard-Component
     ↓
-MermaidVisualizationComponent (Client-Component)
+D3VisualizationComponent (Client-Component)
     ↓
-mermaid.js rendert SVG direkt im Browser
+D3.js rendert interaktiven SVG-Graph
     ↓
-User sieht interaktives Diagramm
+User sieht & interagiert mit Graph (Drag & Drop bei Force-Directed)
 ```
 
-**Wichtig:** Mermaid wird ausschließlich clientseitig gerendert, da:
+**Wichtig:** D3.js wird clientseitig gerendert, da:
 
+- Interaktivität (Drag & Drop) nur im Browser möglich
+- D3 benötigt DOM-Zugriff für Force-Simulationen
 - Bessere Performance durch Browser-Caching
-- Keine zusätzliche API-Infrastruktur (kein Puppeteer/Server-Side Rendering)
-- Mermaid.js nutzt Browser-APIs und kann nicht serverseitig gerendert werden (Next.js SSR-Konflikt)
+- Keine serverseitige Rendering-Komplexität
 
 ### Component-Struktur
 
-**Datei:** `components/flashcard/mermaid-visualization.tsx`
+**Datei:** `components/flashcard/d3-visualization.tsx`
 
 ```typescript
 "use client"; // MUSS Client-Component sein!
 
-import mermaid from "mermaid";
+import { useEffect, useRef } from "react";
+import * as d3 from "d3";
+import type { D3Visualization } from "@/lib/lesson.types";
 
-export function MermaidVisualizationComponent({ mermaidData }) {
-  // Rendert Mermaid-Code zu SVG im Browser
-  // Nutzt Neobrutalismus-Theme (Peach, Pink, Teal, Black borders)
+export function D3VisualizationComponent({ visualization }) {
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  useEffect(() => {
+    // D3 Force Simulation, Hierarchical Tree, Radial oder Cluster Layout
+    // Neobrutalismus-Styling (Retro Palette, 4px borders, 15px radius)
+  }, [visualization]);
+
+  return (
+    <div className="bg-white border-4 border-black rounded-[15px] p-4">
+      <svg ref={svgRef} className="w-full h-auto" />
+    </div>
+  );
 }
 ```
 
-**Supported Diagram Types:**
+**Unterstützte Layout-Typen:**
 
-- `flowchart` - Prozess-Diagramme
-- `mindmap` - Themenübersichten
-- `sequence` - Interaktions-Diagramme
-- `class` - Klassendiagramme
-- `er` - Entity-Relationship-Diagramme
-- `state` - Zustandsdiagramme
-- `gantt` - Zeitpläne
-- `pie` - Kreisdiagramme
-- `quadrant` - Quadranten-Diagramme
-- `timeline` - Zeitlinien
+- `force-directed` - Interaktive Concept Maps mit Drag & Drop
+- `hierarchical` - Top-Down Tree-Strukturen
+- `radial` - Zentrale Konzepte mit radialen Verbindungen
+- `cluster` - Gruppierte Themen-Kategorien
 
-### Code Sanitization (Best Practice)
+### Neobrutalismus-Styling für D3.js
 
-**Funktion:** `sanitizeMermaidCode()` in `lib/utils.ts`
+Automatisch angewendetes Styling in allen Layouts:
 
-Bereinigt Mermaid-Code gemäß offizieller Mermaid.js Dokumentation:
+- **Dicke schwarze Borders:** 4px stroke-width für Nodes und Links
+- **15px Border-Radius:** Container mit `rounded-[15px]`
+- **Retro-Farben:**
+  - Concept: Peach (#FFC667)
+  - Detail: White (#FFFFFF)
+  - Example: Pink (#FB7DA8)
+  - Definition: Purple (#662CB7)
+- **Font-Weight 800:** Extrabold für alle Node-Labels
+- **Responsive SVG:** viewBox scaling für Mobile-Optimierung
 
-**1. Konvertiert escaped Newlines zu echten Zeilenumbrüchen:**
+### Intelligente Layout-Auswahl (Prompt Engineering)
 
-```typescript
-// OpenAI gibt oft:
-"flowchart TD\\n  Start"
+Die KI wählt das optimale D3-Layout basierend auf dem Lerninhalt:
 
-// Mermaid.js braucht:
-"flowchart TD
-  Start"
-```
+**Force-Directed Layout verwenden für:**
 
-**2. Entfernt problematische Tabs und Whitespaces:**
+- Machine Learning Konzepte (Supervised, Unsupervised, Reinforcement)
+- Abstrakte Begriffe mit vielen Beziehungen
+- Vernetzte Wissensstrukturen
+- REST API Prinzipien (Stateless, Cacheable, etc.)
 
-```typescript
-// Tabs → Spaces
-"flowchart TD\\t  Start" → "flowchart TD    Start"
+**Hierarchical Layout verwenden für:**
 
-// Trim pro Zeile
-"  flowchart TD  \n  Start  " → "flowchart TD\n  Start"
-```
-
-**3. Escaped Special Characters in Node-Labels:**
-
-```typescript
-// Problematisch (Parse-Error):
-A[Text (mit Klammern)]
-B[Text: Doppelpunkt]
-
-// Korrekt (mit Quotes):
-A["Text (mit Klammern)"]
-B["Text: Doppelpunkt"]
-```
-
-**Anwendung:**
-
-- Serverseitig: In `api/trigger-lesson/route.ts` beim Speichern
-- Clientseitig: In `mermaid-visualization.tsx` vor dem Rendering
-- Verhindert Parse-Errors durch inkonsistente OpenAI-Outputs
-
-### Neobrutalismus-Styling für Mermaid
-
-Automatisch angewendetes CSS:
-
-- **Dicke schwarze Borders:** 4px stroke-width
-- **15px Border-Radius:** Abgerundete Ecken
-- **Retro-Farben:** Peach (#FFC667), Pink (#FB7DA8), Teal (#00D9BE), Blue (#0CBCD7)
-- **Font-Weight 800:** Extrabold für alle Labels
-- **Box-Shadows:** 4px 4px 0px 0px rgba(0,0,0,1)
-
-### Intelligente Visualisierungs-Auswahl (Prompt Engineering)
-
-Die KI folgt diesen Richtlinien:
-
-**Flowchart verwenden für:**
-
-- HTTP Request Lifecycle
-- Algorithmen (Binary Search, Sorting)
+- HTTP Request Lifecycle (Client → DNS → TCP → Request → Response)
+- Algorithmen (Schritt-für-Schritt Abläufe)
 - Build Pipelines
 - Entscheidungsbäume
 
-**Mindmap verwenden für:**
+**Radial Layout verwenden für:**
 
-- JavaScript Frameworks Übersicht
-- Machine Learning Kategorien
-- Themen-Cluster
+- JavaScript Frameworks Übersicht (Zentrum: JS, Äste: React, Vue, Angular)
+- React Hooks (Zentrum: React, Äste: useState, useEffect, etc.)
+- Feature-Kategorien
 
-**Sequence Diagram verwenden für:**
+**Cluster Layout verwenden für:**
 
-- OAuth 2.0 Flow
-- API Request/Response
-- Client-Server Kommunikation
-
-**Class/ER Diagram verwenden für:**
-
-- Datenbank-Schemas
-- OOP-Klassenstrukturen
-- E-Commerce Datenmodell
-
-**Thesys verwenden für:**
-
-- Abstrakte Konzepte (REST Prinzipien)
-- Definitionen (Was ist Cloud Computing?)
-- Hierarchische Wissensstrukturen
-
-**Beide (Thesys + Mermaid) verwenden für:**
-
-- Komplexe Themen mit Konzepten UND Prozessen
-- Beispiel: "REST API Design" → Thesys (Prinzipien) + Flowchart (Request Handling)
+- Vergleiche zwischen ähnlichen Technologien
+- Gruppierte Themen-Kategorien
+- Taxonomien
 
 ### Performance-Optimierung
 
-**Clientseitiges Rendering:**
+**Clientseitiges D3.js Rendering:**
 
-- Mermaid-Code wird in Datenbank gespeichert (kein SVG-Pre-Rendering)
-- Browser rendert SVG on-the-fly beim ersten Laden der Flashcard
-- Browser-eigenes Caching sorgt für schnelle Wiederholungen
-- Kein serverseitiger Overhead (kein Puppeteer, keine zusätzliche API)
+- D3-Daten (nodes, links) werden als JSON in Datenbank gespeichert
+- Browser rendert interaktive SVG-Graphen on-the-fly
+- Force-Simulation läuft nur einmal beim initialen Rendering
+- Browser-Caching für wiederholte Ansichten
 
 **Vorteile:**
 
-- Einfachere Architektur (keine zusätzlichen Dependencies wie Puppeteer)
-- Schnellere KI-Generierung (keine serverseitigen SVG-Rendering-Wartezeiten)
-- Bessere Skalierbarkeit (Rendering-Last auf Client verteilt)
-- Next.js SSR-kompatibel (Mermaid-Component ist korrekt als "use client" isoliert)
+- Volle Interaktivität (Drag & Drop, Hover-Effekte)
+- Einfache Architektur (keine serverseitige SVG-Generierung)
+- Skalierbar (Rendering-Last auf Client verteilt)
+- Next.js SSR-kompatibel (D3-Component mit `"use client"` Directive)
 
 ### TypeScript Types
 
 ```typescript
-export type VisualizationType = "thesys" | "mermaid";
+export type VisualizationType = "thesys" | "d3";
 
-export type MermaidDiagramType =
-  | "flowchart"
-  | "mindmap"
-  | "sequence"
-  | "class"
-  | "state"
-  | "er"
-  | "gantt"
-  | "pie"
-  | "quadrant"
-  | "timeline";
+export type D3LayoutType =
+  | "force-directed"
+  | "hierarchical"
+  | "radial"
+  | "cluster";
 
-export interface MermaidVisualization {
-  diagramType: MermaidDiagramType;
-  code: string;
-  svg?: string; // Optional cached SVG
+export interface D3Node {
+  id: string;
+  label: string;
+  type: "concept" | "detail" | "example" | "definition";
+  color?: string;
+}
+
+export interface D3Link {
+  source: string;
+  target: string;
+  label?: string;
+  strength?: number;
+}
+
+export interface D3Visualization {
+  layout: D3LayoutType;
+  nodes: D3Node[];
+  links: D3Link[];
+  config?: {
+    width?: number;
+    height?: number;
+    nodeRadius?: number;
+    linkDistance?: number;
+  };
 }
 
 export interface Visualization {
   type: VisualizationType;
-  data: ThesysJSON | MermaidVisualization;
+  data: ThesysJSON | D3Visualization;
 }
 ```
 
@@ -669,36 +636,55 @@ export interface Visualization {
 {
   "cards": [
     {
-      "question": "Wie funktioniert ein HTTP Request?",
+      "question": "Wie läuft ein HTTP Request ab?",
       "visualizations": [
         {
-          "type": "mermaid",
+          "type": "d3",
           "data": {
-            "diagramType": "flowchart",
-            "code": "flowchart TD\n  A[Client] --> B[DNS Lookup]\n  B --> C[TCP Connection]\n  C --> D[HTTP Request]\n  D --> E[Server Processing]\n  E --> F[HTTP Response]"
+            "layout": "hierarchical",
+            "nodes": [
+              { "id": "1", "label": "Client", "type": "concept" },
+              { "id": "2", "label": "DNS Lookup", "type": "detail" },
+              { "id": "3", "label": "TCP Verbindung", "type": "detail" },
+              { "id": "4", "label": "HTTP Request", "type": "detail" },
+              { "id": "5", "label": "Server Verarbeitung", "type": "detail" },
+              { "id": "6", "label": "HTTP Response", "type": "example" }
+            ],
+            "links": [
+              { "source": "1", "target": "2" },
+              { "source": "2", "target": "3" },
+              { "source": "3", "target": "4" },
+              { "source": "4", "target": "5" },
+              { "source": "5", "target": "6" }
+            ]
           }
         }
       ]
     },
     {
-      "question": "Was sind die REST Prinzipien?",
+      "question": "Was sind die Haupttypen von Machine Learning?",
       "visualizations": [
         {
-          "type": "thesys",
+          "type": "d3",
           "data": {
+            "layout": "force-directed",
             "nodes": [
-              { "id": "1", "label": "REST", "type": "concept" },
-              { "id": "2", "label": "Stateless", "type": "detail" }
+              { "id": "1", "label": "Machine Learning", "type": "concept" },
+              { "id": "2", "label": "Supervised", "type": "detail" },
+              { "id": "3", "label": "Unsupervised", "type": "detail" },
+              { "id": "4", "label": "Classification", "type": "example" },
+              { "id": "5", "label": "Regression", "type": "example" }
             ],
-            "edges": [{ "from": "1", "to": "2", "label": "erfordert" }],
-            "layout": "hierarchical"
-          }
-        },
-        {
-          "type": "mermaid",
-          "data": {
-            "diagramType": "sequence",
-            "code": "sequenceDiagram\n  Client->>Server: GET /api/users\n  Server->>Database: Query Users\n  Database-->>Server: User Data\n  Server-->>Client: 200 OK + JSON"
+            "links": [
+              { "source": "1", "target": "2", "label": "Typ" },
+              { "source": "1", "target": "3", "label": "Typ" },
+              { "source": "2", "target": "4", "label": "umfasst" },
+              { "source": "2", "target": "5", "label": "umfasst" }
+            ],
+            "config": {
+              "nodeRadius": 50,
+              "linkDistance": 120
+            }
           }
         }
       ]
@@ -1096,19 +1082,19 @@ export const getCachedFlashcardsByTopic = unstable_cache(
 
 ---
 
-**Letzte Aktualisierung:** 2025-10-12 (Next.js 15 Caching-Strategie + Mermaid.js Integration)
-**Projekt-Status:** Phase 1.5 (MVP + Performance-Optimierung) abgeschlossen ✅ | Phase 2 (Monetarisierung) als nächstes
+**Letzte Aktualisierung:** 2025-10-13 (D3.js Integration im Branch `d3js`)
+**Projekt-Status:** Phase 1.5 (MVP + Performance-Optimierung + D3.js) abgeschlossen ✅ | Phase 2 (Monetarisierung) als nächstes
 
-**Neue Features (Phase 1.5):**
+**Neue Features (Phase 1.5 + D3.js Branch):**
 
 - ✅ **Next.js 15 Caching:** Server-side Caching mit `unstable_cache` (86% schneller)
 - ✅ **Gecachte Queries:** Zentrale Query-Funktionen in `lib/supabase/queries.ts`
 - ✅ **Server Component Optimization:** Dashboard, Lesson-Viewer, Profilseite
 - ✅ **Tag-basierte Invalidierung:** Präzise Cache-Invalidierung nach Mutationen
 - ✅ **ProfileForm Extraction:** Client Component für Form-Logik, Server Component für Daten
-- ✅ **Intelligente Visualisierungs-Auswahl:** KI wählt zwischen Thesys + Mermaid
-- ✅ **Clientseitiges Mermaid Rendering:** SVG-Rendering im Browser (kein Puppeteer)
-- ✅ **Code-Sanitization:** Robuste Mermaid-Code-Bereinigung (sanitizeMermaidCode)
-- ✅ **Neobrutalismus-Styling:** Custom Theme für alle Mermaid-Diagramme
-- ✅ **10+ Diagrammtypen:** Flowchart, Mindmap, Sequence, Class, ER, State, etc.
-- ✅ **SSR-Kompatibilität:** Isolierte Client-Components für Browser-APIs
+- ✅ **D3.js Integration (Branch: d3js):** Interaktive Graph-Visualisierungen mit 4 Layouts
+- ✅ **Force-Directed Graphs:** Draggable Nodes für Concept Maps
+- ✅ **Hierarchical/Radial/Cluster Layouts:** Verschiedene Darstellungsformen je nach Inhalt
+- ✅ **Neobrutalismus-Styling:** Retro Palette für alle D3-Visualisierungen
+- ✅ **Responsive SVG:** ViewBox scaling für optimale Mobile-Darstellung
+- ✅ **SSR-Kompatibilität:** Isolierte Client-Component für D3-Browser-APIs

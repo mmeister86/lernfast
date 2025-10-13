@@ -7,12 +7,19 @@ import { FeaturesSection } from "@/components/landing/features-section";
 import { Footer } from "@/components/landing/footer";
 import { GradientBackground } from "@/components/landing/gradient-background";
 import { LoadingModal } from "@/components/loading-modal";
+import { TopicSelectionModal } from "@/components/landing/topic-selection-modal";
 import { useSession } from "@/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useRef, Suspense } from "react";
 import { cn } from "@/lib/utils";
+import { TopicSuggestion } from "@/lib/lesson.types";
 
-type LoadingPhase = "analyzing" | "generating" | "finalizing";
+type LoadingPhase =
+  | "suggesting"
+  | "analyzing"
+  | "researching"
+  | "structuring"
+  | "finalizing";
 
 function HomeContent() {
   const router = useRouter();
@@ -25,6 +32,13 @@ function HomeContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState<LoadingPhase | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // NEU: Topic-Suggestion Workflow State
+  const [suggestions, setSuggestions] = useState<TopicSuggestion[]>([]);
+  const [showTopicModal, setShowTopicModal] = useState(false);
+  const [selectedRefinedTopic, setSelectedRefinedTopic] = useState<
+    string | null
+  >(null);
 
   // Track verarbeitete Topics um doppelte API-Calls zu verhindern
   const processedTopics = useRef<Set<string>>(new Set());
@@ -45,8 +59,53 @@ function HomeContent() {
     }
   }, [searchParams, session, isLoading, isPending]);
 
-  // Hilfsfunktion für direkten API-Call (nach Login)
-  const handleTopicSubmit = async (topicValue: string) => {
+  // NEU: Topic-Suggestions laden
+  const fetchTopicSuggestions = async (topicValue: string) => {
+    setIsLoading(true);
+    setLoadingPhase("suggesting");
+    setError(null);
+
+    try {
+      const response = await fetch("/api/suggest-topics", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          topic: topicValue.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(
+          data.error ||
+            "Fehler beim Laden der Vorschläge. Bitte versuche es erneut."
+        );
+        setIsLoading(false);
+        setLoadingPhase(null);
+        return;
+      }
+
+      // Suggestions anzeigen
+      setSuggestions(data.suggestions);
+      setShowTopicModal(true);
+      setIsLoading(false);
+      setLoadingPhase(null);
+    } catch (err) {
+      console.error("Topic suggestion error:", err);
+      setError("Ein unerwarteter Fehler ist aufgetreten.");
+      setIsLoading(false);
+      setLoadingPhase(null);
+    }
+  };
+
+  // NEU: Lesson erstellen mit refinedTopic
+  const handleTopicSubmit = async (
+    topicValue: string,
+    refinedTopic?: string
+  ) => {
     if (!session?.user || !topicValue.trim() || isLoading) return;
 
     setIsLoading(true);
@@ -56,8 +115,12 @@ function HomeContent() {
       // Phase 1: Analysiere (kurze Verzögerung für bessere UX)
       await new Promise((resolve) => setTimeout(resolve, 800));
 
-      // Phase 2: Generiere (API Call)
-      setLoadingPhase("generating");
+      // Phase 2: Recherche
+      setLoadingPhase("researching");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Phase 3: Strukturierung
+      setLoadingPhase("structuring");
 
       const response = await fetch("/api/trigger-lesson", {
         method: "POST",
@@ -66,6 +129,7 @@ function HomeContent() {
         },
         body: JSON.stringify({
           topic: topicValue.trim(),
+          refinedTopic: refinedTopic || null,
           lessonType: lessonType,
         }),
       });
@@ -81,7 +145,7 @@ function HomeContent() {
         return;
       }
 
-      // Phase 3: Finalisiere
+      // Phase 4: Finalisiere
       setLoadingPhase("finalizing");
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -98,6 +162,14 @@ function HomeContent() {
       setIsLoading(false);
       setLoadingPhase(null);
     }
+  };
+
+  // NEU: Handler für Topic-Auswahl aus Modal
+  const handleTopicSelection = (suggestion: TopicSuggestion) => {
+    setShowTopicModal(false);
+    setSelectedRefinedTopic(suggestion.title);
+    // Starte Lesson-Erstellung mit refinedTopic
+    handleTopicSubmit(topic, suggestion.title);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -118,8 +190,8 @@ function HomeContent() {
       return;
     }
 
-    // User ist eingeloggt → Nutze die gemeinsame Logik
-    await handleTopicSubmit(topic);
+    // User ist eingeloggt → Lade Topic-Suggestions
+    await fetchTopicSuggestions(topic);
   };
 
   return (
@@ -221,6 +293,17 @@ function HomeContent() {
       <LoadingModal
         isOpen={loadingPhase !== null}
         phase={loadingPhase || "analyzing"}
+      />
+
+      {/* Topic Selection Modal */}
+      <TopicSelectionModal
+        isOpen={showTopicModal}
+        suggestions={suggestions}
+        onSelect={handleTopicSelection}
+        onClose={() => {
+          setShowTopicModal(false);
+          setSuggestions([]);
+        }}
       />
     </>
   );
