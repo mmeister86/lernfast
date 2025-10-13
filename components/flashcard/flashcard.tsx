@@ -5,9 +5,9 @@ import type {
   Flashcard as FlashcardType,
   ThesysJSON,
   Visualization,
-  MermaidVisualization,
+  D3Visualization,
 } from "@/lib/lesson.types";
-import { MermaidVisualizationComponent } from "./mermaid-visualization";
+import { D3VisualizationComponent } from "./d3-visualization";
 
 type FlashcardProps = {
   flashcard: FlashcardType;
@@ -145,7 +145,7 @@ function ThesysVisualization({ thesysJson }: { thesysJson: ThesysJSON }) {
 }
 
 /**
- * Renderer für alle Visualisierungen (Thesys + Mermaid)
+ * Renderer für alle Visualisierungen (Thesys + D3)
  */
 function VisualizationRenderer({
   visualizations,
@@ -156,12 +156,12 @@ function VisualizationRenderer({
     <div className="text-black space-y-6">
       {visualizations.map((viz, idx) => (
         <div key={idx}>
-          {viz.type === "thesys" ? (
-            <ThesysVisualization thesysJson={viz.data as ThesysJSON} />
-          ) : viz.type === "mermaid" ? (
-            <MermaidVisualizationComponent
-              mermaidData={viz.data as MermaidVisualization}
+          {viz.type === "d3" ? (
+            <D3VisualizationComponent
+              visualization={viz.data as D3Visualization}
             />
+          ) : viz.type === "thesys" ? (
+            <ThesysVisualization thesysJson={viz.data as ThesysJSON} />
           ) : null}
         </div>
       ))}
