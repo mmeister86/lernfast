@@ -506,12 +506,12 @@ import type { D3Visualization } from "@/lib/lesson.types";
 
 export function D3VisualizationComponent({ visualization }) {
   const svgRef = useRef<SVGSVGElement>(null);
-  
+
   useEffect(() => {
     // D3 Force Simulation, Hierarchical Tree, Radial oder Cluster Layout
     // Neobrutalismus-Styling (Retro Palette, 4px borders, 15px radius)
   }, [visualization]);
-  
+
   return (
     <div className="bg-white border-4 border-black rounded-[15px] p-4">
       <svg ref={svgRef} className="w-full h-auto" />
@@ -533,9 +533,9 @@ Automatisch angewendetes Styling in allen Layouts:
 
 - **Dicke schwarze Borders:** 4px stroke-width für Nodes und Links
 - **15px Border-Radius:** Container mit `rounded-[15px]`
-- **Retro-Farben:** 
+- **Retro-Farben:**
   - Concept: Peach (#FFC667)
-  - Detail: White (#FFFFFF) 
+  - Detail: White (#FFFFFF)
   - Example: Pink (#FB7DA8)
   - Definition: Purple (#662CB7)
 - **Font-Weight 800:** Extrabold für alle Node-Labels

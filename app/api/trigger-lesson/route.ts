@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
     // 2. INPUT VALIDIERUNG
     const body = await request.json();
-    const { topic, lessonType } = body;
+    const { topic, refinedTopic, lessonType } = body;
 
     if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
       return NextResponse.json(
@@ -68,6 +68,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // refinedTopic ist optional (kann null sein)
+    const targetTopic = refinedTopic || topic.trim();
 
     // Kartenanzahl: Micro Dose = 3-5 (fix), Deep Dive = User-Präferenz
     const cardCount =
@@ -106,6 +109,7 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: userId,
         topic: topic.trim(),
+        refined_topic: refinedTopic || null,
         lesson_type: lessonType,
         status: "pending",
       })
@@ -120,7 +124,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. OPENAI KI-GENERIERUNG
+    // 5. MULTI-STAGE KI-GENERIERUNG (Research + Strukturierung)
     try {
       // Update Status zu 'processing'
       await supabase
@@ -131,8 +135,83 @@ export async function POST(request: NextRequest) {
       // OpenAI Client initialisieren
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-      // Prompt Engineering für D3.js Graph-Visualisierungen
-      const systemPrompt = `Du bist ein Experte für didaktisch aufbereitete Lernkarten mit interaktiven D3.js-Graph-Visualisierungen.
+      // ============================================
+      // STAGE 1: RESEARCH - Fakten & Konzepte sammeln
+      // ============================================
+
+      const researchModel =
+        lessonType === "micro_dose"
+          ? process.env.OPENAI_MICRO_DOSE_MODEL || "gpt-4.1-mini"
+          : process.env.OPENAI_DEEP_DIVE_MODEL || "o4-mini-deep-research";
+
+      const researchSystemPrompt = `Du bist ein Recherche-Experte, der tiefgehende, strukturierte Informationen zu Lernthemen sammelt.
+
+**AUFGABE:**
+Recherchiere umfassend zum angegebenen Thema und sammle:
+1. Kernfakten und Definitionen
+2. Wichtige Konzepte und Zusammenhänge
+3. Praktische Beispiele
+4. Relevante Details für tiefes Verständnis
+
+**PERSONALISIERUNG:**
+- Erfahrungslevel: ${profileContext.experienceLevel}
+- Schwierigkeitsgrad: ${profileContext.preferredDifficulty}
+${profileContext.age ? `- Alter: ${profileContext.age} Jahre` : ""}
+${
+  profileContext.learningGoals
+    ? `- Lernziele: ${profileContext.learningGoals}`
+    : ""
+}
+
+Passe Tiefe und Komplexität entsprechend an.
+
+**OUTPUT-FORMAT (JSON):**
+{
+  "topic": "Thema",
+  "facts": ["Fakt 1", "Fakt 2", ...],
+  "concepts": [
+    {
+      "name": "Konzept-Name",
+      "description": "Erklärung",
+      "relationships": ["Beziehung zu anderen Konzepten"]
+    }
+  ],
+  "examples": ["Beispiel 1", "Beispiel 2", ...],
+  "keyTakeaways": ["Hauptpunkt 1", "Hauptpunkt 2", ...]
+}`;
+
+      const researchCompletion = await openai.chat.completions.create({
+        model: researchModel,
+        messages: [
+          { role: "system", content: researchSystemPrompt },
+          {
+            role: "user",
+            content: `Recherchiere umfassend zum Thema: ${targetTopic}
+
+Anzahl der zu erstellenden Lernkarten: ${cardCount}
+Sammle genug Material für hochwertige, tiefgehende Lernkarten.`,
+          },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.7,
+      });
+
+      const researchData = JSON.parse(
+        researchCompletion.choices[0].message.content || "{}"
+      );
+
+      console.log(
+        `✅ Research completed for topic: ${targetTopic} (${researchModel})`
+      );
+
+      // ============================================
+      // STAGE 2: STRUCTURE - D3-Visualisierungen erstellen
+      // ============================================
+
+      const structureModel =
+        process.env.OPENAI_STRUCTURE_MODEL || "gpt-4.1-mini";
+
+      const structureSystemPrompt = `Du bist ein Experte für didaktisch aufbereitete Lernkarten mit interaktiven D3.js-Graph-Visualisierungen.
 
 **PERSONALISIERUNG:**
 Du erhältst Profildaten des Nutzers und musst die Lernkarten entsprechend anpassen:
@@ -169,6 +248,7 @@ Erstelle für jede Lernkarte eine interaktive Graph-Visualisierung mit D3.js. W�
   "cards": [
     {
       "question": "Was sind die Haupttypen von Machine Learning?",
+      "answer": "Ausführlicher erklärender Text (150-300 Wörter), der das Konzept detailliert erläutert. Nutze klare Struktur mit Absätzen. Keine Aufzählungen oder Bullet Points - fließender Text.",
       "visualizations": [
         {
           "type": "d3",
@@ -197,6 +277,7 @@ Erstelle für jede Lernkarte eine interaktive Graph-Visualisierung mit D3.js. W�
     },
     {
       "question": "Wie läuft ein HTTP Request ab?",
+      "answer": "Ausführlicher erklärender Text (150-300 Wörter) für dieses Konzept. Fließender, strukturierter Text ohne Bullet Points.",
       "visualizations": [
         {
           "type": "d3",
@@ -225,7 +306,11 @@ Erstelle für jede Lernkarte eine interaktive Graph-Visualisierung mit D3.js. W�
 }
 
 **WICHTIGE REGELN:**
+- Jede Karte MUSS ein "answer"-Feld mit 150-300 Wörtern erklärendem Text haben
 - Jede Karte MUSS genau eine D3-Visualisierung haben
+- **CARD 1 (Übersicht)**: MUSS IMMER Radial Layout verwenden mit 4-6 Sub-Nodes für Gesamtüberblick
+- **CARDS 2-X**: Wähle abwechslungsreiche Layouts basierend auf Inhalt (max 2x dasselbe Layout)
+- **Answer-Text**: Fließender, strukturierter Text ohne Bullet Points oder Aufzählungen
 - Nutze aussagekräftige Node-Labels (kurz, prägnant, max. 3-4 Wörter)
 - Links sollten Labels haben, die die Beziehung beschreiben (optional bei hierarchical)
 - Node-Types:
@@ -233,19 +318,22 @@ Erstelle für jede Lernkarte eine interaktive Graph-Visualisierung mit D3.js. W�
   * "detail" (Details, Weiß)
   * "example" (Beispiele, Pink)
   * "definition" (Definitionen, Lila)
-- Deutsche Sprache für alle Labels und Fragen
+- Deutsche Sprache für alle Labels, Fragen und Antworten
 - Minimum 3 Nodes, Maximum 15 Nodes pro Visualisierung
 - Node-IDs MÜSSEN eindeutig sein und in Links korrekt referenziert werden
 - Bei hierarchical/radial/cluster: Links bilden Baum-Struktur (ein Root-Node)`;
 
-      // OpenAI API Call
-      const completion = await openai.chat.completions.create({
-        model: process.env.OPENAI_MICRO_DOSE_MODEL || "gpt-4o-mini",
+      // Structure API Call mit Research-Daten
+      const structureCompletion = await openai.chat.completions.create({
+        model: structureModel,
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: structureSystemPrompt },
           {
             role: "user",
-            content: `Thema: ${topic.trim()}
+            content: `Basierend auf den folgenden Recherche-Ergebnissen, erstelle ${cardCount} Lernkarten mit D3-Visualisierungen.
+
+**RESEARCH-DATEN:**
+${JSON.stringify(researchData, null, 2)}
 
 **Nutzer-Profil:**
 - Erfahrungslevel: ${profileContext.experienceLevel}
@@ -263,7 +351,11 @@ ${
                 : profileContext.language
             }
 
-Erstelle bitte ${cardCount} Lernkarten, die auf dieses Profil zugeschnitten sind.`,
+**WICHTIG:**
+- Card 1 = IMMER Radial Layout für Themenüberblick
+- Cards 2-${cardCount} = Abwechslungsreiche Layouts (max 2x dasselbe)
+
+Erstelle bitte hochwertige Lernkarten basierend auf den Research-Daten.`,
           },
         ],
         response_format: { type: "json_object" },
@@ -271,18 +363,59 @@ Erstelle bitte ${cardCount} Lernkarten, die auf dieses Profil zugeschnitten sind
 
       // JSON Response parsen
       const flashcardsData = JSON.parse(
-        completion.choices[0].message.content || "{}"
+        structureCompletion.choices[0].message.content || "{}"
       );
+
+      console.log(
+        `✅ Structure completed: ${
+          flashcardsData.cards?.length || 0
+        } cards (${structureModel})`
+      );
+
+      // Validiere Layout-Verteilung
+      if (flashcardsData.cards && Array.isArray(flashcardsData.cards)) {
+        const layoutCounts: Record<string, number> = {};
+
+        flashcardsData.cards.forEach((card: any, index: number) => {
+          const layout = card.visualizations?.[0]?.data?.layout;
+          if (layout) {
+            layoutCounts[layout] = (layoutCounts[layout] || 0) + 1;
+          }
+
+          // Warnung wenn Card 1 nicht radial ist
+          if (index === 0 && layout !== "radial") {
+            console.warn(
+              `⚠️ Card 1 sollte Radial Layout haben, hat aber: ${layout}`
+            );
+          }
+        });
+
+        // Warnung wenn ein Layout >2x vorkommt (außer radial bei nur 1 Card)
+        const hasExcessiveLayout = Object.entries(layoutCounts).some(
+          ([layout, count]) => {
+            if (layout === "radial" && flashcardsData.cards.length === 1)
+              return false;
+            return count > 2;
+          }
+        );
+
+        if (hasExcessiveLayout) {
+          console.warn(`⚠️ Layout-Verteilung nicht optimal:`, layoutCounts);
+        } else {
+          console.log(`✅ Layout-Verteilung OK:`, layoutCounts);
+        }
+      }
 
       if (!flashcardsData.cards || !Array.isArray(flashcardsData.cards)) {
         throw new Error("Ungültiges OpenAI Response Format");
       }
 
-      // Verarbeite jede Flashcard und speichere Visualisierungen
+      // Verarbeite jede Flashcard und speichere Visualisierungen + Answer-Text
       // D3-Daten werden direkt gespeichert (keine Sanitization nötig)
       const flashcardInserts = flashcardsData.cards.map((card: any) => ({
         lesson_id: lesson.id,
         question: card.question,
+        answer: card.answer || null,
         visualizations: card.visualizations || [],
       }));
 

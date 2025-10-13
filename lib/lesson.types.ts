@@ -7,6 +7,17 @@ export type LessonStatus = "pending" | "processing" | "completed" | "failed";
 export type LessonType = "micro_dose" | "deep_dive";
 
 /**
+ * Topic Suggestion für Multi-Stage Workflow
+ * Wird von /api/suggest-topics generiert
+ */
+export interface TopicSuggestion {
+  id: string;
+  title: string;
+  description: string;
+  emoji: string;
+}
+
+/**
  * Lesson Entity (Lerneinheit)
  * Eine Lesson enthält mehrere Flashcards
  */
@@ -14,6 +25,7 @@ export interface Lesson {
   id: string;
   user_id: string;
   topic: string;
+  refined_topic?: string | null; // NEU: User-selected refined topic from suggestions
   lesson_type: LessonType;
   status: LessonStatus;
   created_at: string; // ISO 8601 timestamp string von Supabase
@@ -88,6 +100,7 @@ export interface Flashcard {
   id: string;
   lesson_id: string;
   question: string;
+  answer?: string | null; // NEU: Explanatory text content (150-300 words)
   thesys_json?: ThesysJSON | null; // Legacy field - wird bald entfernt
   visualizations?: Visualization[]; // Neues Feld - Array von Visualisierungen
   is_learned: boolean;
