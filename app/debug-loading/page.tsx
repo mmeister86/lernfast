@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { LoadingModal } from "@/components/loading-modal";
+import { LoadingModal, type LoadingPhase } from "@/components/loading-modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-
-type LoadingPhase = "analyzing" | "generating" | "finalizing";
 
 /**
  * Debug-Seite für das Hamster-Loading-Modal
@@ -52,6 +50,15 @@ export default function DebugLoadingPage() {
               <label className="text-lg font-medium">Aktuelle Phase:</label>
               <div className="flex gap-3 flex-wrap">
                 <Button
+                  onClick={() => handlePhaseChange("suggesting")}
+                  variant={
+                    currentPhase === "suggesting" ? "default" : "outline"
+                  }
+                  className="flex items-center gap-2"
+                >
+                  💡 Suggesting
+                </Button>
+                <Button
                   onClick={() => handlePhaseChange("analyzing")}
                   variant={currentPhase === "analyzing" ? "default" : "outline"}
                   className="flex items-center gap-2"
@@ -59,13 +66,22 @@ export default function DebugLoadingPage() {
                   🔍 Analyzing
                 </Button>
                 <Button
-                  onClick={() => handlePhaseChange("generating")}
+                  onClick={() => handlePhaseChange("researching")}
                   variant={
-                    currentPhase === "generating" ? "default" : "outline"
+                    currentPhase === "researching" ? "default" : "outline"
                   }
                   className="flex items-center gap-2"
                 >
-                  ✨ Generating
+                  📚 Researching
+                </Button>
+                <Button
+                  onClick={() => handlePhaseChange("structuring")}
+                  variant={
+                    currentPhase === "structuring" ? "default" : "outline"
+                  }
+                  className="flex items-center gap-2"
+                >
+                  🎨 Structuring
                 </Button>
                 <Button
                   onClick={() => handlePhaseChange("finalizing")}

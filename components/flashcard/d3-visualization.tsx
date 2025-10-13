@@ -156,7 +156,7 @@ function renderForceDirected(
     .attr("font-weight", "800")
     .attr("fill", (d: any) => (d.type === "definition" ? "#FFFFFF" : "#000000"))
     .style("pointer-events", "none")
-    .each(function (d: any) {
+    .each(function (this: SVGTextElement, d: any) {
       // Wrap text if too long
       const text = d3.select(this);
       const words = d.label.split(/\s+/);

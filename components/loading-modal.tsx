@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { HamsterSpinner } from "@/components/ui/hamster-spinner";
 import { cn } from "@/lib/utils";
 
-type LoadingPhase =
+export type LoadingPhase =
   | "suggesting"
   | "analyzing"
   | "researching"
