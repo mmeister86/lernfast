@@ -193,7 +193,6 @@ Sammle genug Material für hochwertige, tiefgehende Lernkarten.`,
           },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.7,
       });
 
       const researchData = JSON.parse(

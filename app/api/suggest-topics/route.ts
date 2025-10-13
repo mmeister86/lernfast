@@ -100,7 +100,6 @@ Der Nutzer gibt ein breites Thema ein. Deine Aufgabe ist es, 3 präzise, lernbar
         },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.7,
     });
 
     // JSON Response parsen
