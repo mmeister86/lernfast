@@ -32,6 +32,9 @@ export async function GET() {
     UNSEND_API_KEY: process.env.UNSEND_API_KEY
       ? `✅ Gesetzt (${process.env.UNSEND_API_KEY.substring(0, 10)}...)`
       : "❌ FEHLT",
+    UNSEND_BASE_URL: process.env.UNSEND_BASE_URL
+      ? `✅ Self-Hosted (${process.env.UNSEND_BASE_URL})`
+      : "ℹ️ Nicht gesetzt (Cloud-Version)",
 
     // Supabase
     NEXT_PUBLIC_SUPABASE_URL:
@@ -56,7 +59,9 @@ export async function GET() {
       await pool.end();
       dbConnectionTest = "✅ Verbindung erfolgreich";
     } catch (error) {
-      dbConnectionTest = `❌ Fehler: ${error instanceof Error ? error.message : "Unknown error"}`;
+      dbConnectionTest = `❌ Fehler: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`;
     }
   }
 
@@ -81,12 +86,18 @@ export async function GET() {
       const missingTables = requiredTables.filter((t) => !tables.includes(t));
 
       if (missingTables.length === 0) {
-        tableCheck = `✅ Alle Better-Auth Tabellen vorhanden: ${tables.join(", ")}`;
+        tableCheck = `✅ Alle Better-Auth Tabellen vorhanden: ${tables.join(
+          ", "
+        )}`;
       } else {
-        tableCheck = `❌ Fehlende Tabellen: ${missingTables.join(", ")} (Vorhandene: ${tables.join(", ")})`;
+        tableCheck = `❌ Fehlende Tabellen: ${missingTables.join(
+          ", "
+        )} (Vorhandene: ${tables.join(", ")})`;
       }
     } catch (error) {
-      tableCheck = `❌ Fehler: ${error instanceof Error ? error.message : "Unknown error"}`;
+      tableCheck = `❌ Fehler: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`;
     }
   }
 

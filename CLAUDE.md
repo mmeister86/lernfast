@@ -710,8 +710,9 @@ BETTER_AUTH_SECRET=your-secret-key-min-32-chars  # Generate: openssl rand -base6
 BETTER_AUTH_URL=http://localhost:3000
 NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
 
-# Resend (SERVER-ONLY - für Magic Link E-Mails & Email Change Verification)
-RESEND_API_KEY=re_your_api_key_here  # Get from: https://resend.com/api-keys
+# Unsend (SERVER-ONLY - für Magic Link E-Mails & Email Change Verification)
+UNSEND_API_KEY=us_your_api_key_here  # Get from: https://unsend.dev
+UNSEND_BASE_URL=https://your-unsend-instance.com  # Optional: Nur für self-hosted Instanzen
 
 # OpenAI / LLM API (SERVER-ONLY - für KI-Generierung)
 OPENAI_API_KEY=sk-proj-...  # Get from: https://platform.openai.com/api-keys
