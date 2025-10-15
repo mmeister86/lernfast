@@ -50,35 +50,41 @@ export const auth = betterAuth({
         type: "string",
         required: false,
         input: true,
+        fieldName: "learning_goals",
       },
       experienceLevel: {
         type: "string",
         required: false,
         defaultValue: "beginner",
         input: true,
+        fieldName: "experience_level",
       },
       preferredDifficulty: {
         type: "string",
         required: false,
         defaultValue: "medium",
         input: true,
+        fieldName: "preferred_difficulty",
       },
       preferredCardCount: {
         type: "number",
         required: false,
         defaultValue: 5,
         input: true,
+        fieldName: "preferred_card_count",
       },
       onboardingCompleted: {
         type: "boolean",
         required: false,
         defaultValue: false,
         input: true,
+        fieldName: "onboarding_completed",
       },
       profileUpdatedAt: {
         type: "date",
         required: false,
         input: false, // Wird automatisch vom Trigger gesetzt
+        fieldName: "profile_updated_at",
       },
     },
     changeEmail: {
