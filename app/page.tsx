@@ -54,8 +54,13 @@ function HomeContent() {
 
       processedTopics.current.add(urlTopic);
       setTopic(urlTopic);
-      // Direkt API callen statt form.requestSubmit()
-      handleTopicSubmit(urlTopic);
+      // Statt sofort zu generieren: erst Vorschläge laden und Modal öffnen
+      fetchTopicSuggestions(urlTopic).finally(() => {
+        // URL-Parameter entfernen, um Re-Trigger zu vermeiden
+        const url = new URL(window.location.href);
+        url.searchParams.delete("topic");
+        window.history.replaceState({}, "", url.pathname);
+      });
     }
   }, [searchParams, session, isLoading, isPending]);
 

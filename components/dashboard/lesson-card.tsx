@@ -95,7 +95,7 @@ export function LessonCard({ lesson, onDelete }: LessonCardProps) {
   };
 
   return (
-    <Card className="hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all cursor-pointer">
+    <Card>
       <CardHeader>
         <div className="flex gap-2 mb-3">
           {/* Status Badge */}
