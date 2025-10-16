@@ -3,7 +3,7 @@
 import { useSession } from "@/lib/auth-client";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import {
 export function Navbar() {
   const { data: session, isPending } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
 
   const handleSignOut = async () => {
     await authClient.signOut();
@@ -48,7 +49,13 @@ export function Navbar() {
   const initials = getInitials(session.user.name, session.user.email);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background ">
+    <nav
+      className={`fixed top-0 left-0 right-0 z-[100] ${
+        pathname === "/"
+          ? "bg-transparent"
+          : "bg-background border-b-4 border-border shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+      }`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo*/}

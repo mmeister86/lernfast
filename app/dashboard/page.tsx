@@ -38,9 +38,9 @@ export default async function DashboardPage() {
     <>
       <Navbar />
       <main className="min-h-screen bg-background px-4 pt-24 pb-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto mb-8">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mt-4 mb-16">
             <h1 className="text-4xl md:text-5xl font-heading mb-2">
               Dein Dashboard
             </h1>
