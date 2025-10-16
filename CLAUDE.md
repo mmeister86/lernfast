@@ -1,14 +1,21 @@
 # CLAUDE.md - Projekt-Kontext für lernfa.st
 
+> **Hinweis:** Dieses Dokument bietet einen Überblick über die gesamte Codebase. Für spezialisierte Features siehe:
+> - **[INTERACTIVE-LEARNING.md](./INTERACTIVE-LEARNING.md)** - Detaillierte Dokumentation des 3-Phasen-Lernsystems (Dialog → Story → Quiz)
+> - **[MIGRATIONS.md](./MIGRATIONS.md)** - Datenbank-Schema-Änderungen und SQL-Migrationen *(geplant)*
+> - **[TOPIC-SUGGESTIONS.md](./TOPIC-SUGGESTIONS.md)** - Topic Suggestion System *(geplant)*
+
 ## Projektübersicht
 
-**lernfa.st** ist eine moderne Lernplattform, die komplexe Themen mithilfe von KI in visuell ansprechende, "mikrodosierte" Lernkarten (Flashcards) transformiert. Das Ziel ist schnelles, effektives Lernen durch innovative Visualisierung und eine kosteneffiziente KI-Pipeline.
+**lernfa.st** ist eine moderne Lernplattform, die komplexe Themen mithilfe von KI in ein **interaktives 3-Phasen-Lernerlebnis** transformiert (Dialog → Story → Quiz). Das Ziel ist effektives Lernen durch personalisierte KI-Dialoge, visuelle Storytelling-Komponenten und adaptive Quizzes.
 
 ### Kernidee
 
-- KI-generierte Lernkarten mit visuellen Graphen/Mindmaps (via Thesys/C1)
-- Neobrutalismus-Design für moderne, zugängliche UX
-- Freemium-Modell: "Micro-Dose" (3-5 Karten, gratis/limitiert) vs "Deep Dive" (10-15 Karten, Premium)
+- **3-Phasen-Lernsystem:** Dialog (Knowledge Assessment) → Story (Visual Learning) → Quiz (Adaptive Testing)
+- **KI-generierte Inhalte:** Personalisierte Stories mit Recharts-Visualisierungen, adaptive Quiz-Fragen
+- **Neobrutalismus-Design** für moderne, zugängliche UX
+- **Freemium-Modell:** "Micro-Dose" (3-5 Kapitel, gratis/limitiert) vs "Deep Dive" (10+ Kapitel, Premium)
+- **Legacy-Support:** Alte Flashcards mit D3.js-Visualisierungen (Backward Compatibility)
 
 ### Zielgruppe
 
@@ -26,7 +33,11 @@
 - **TypeScript:** v5
 - **Styling:** Tailwind CSS mit Neobrutalismus-Theme
 - **UI-Komponenten:** Custom Neobrutalism UI (components/ui/)
-- **Visualisierung:** D3.js v7 (interaktive Graph-Visualisierungen für Flashcards)
+- **Visualisierung:**
+  - **Recharts** v3.2.1 - Moderne Charts für Interactive Learning (Timeline, Comparison, Process, Concept-Map)
+  - **D3.js** v7 - Legacy: Interaktive Graph-Visualisierungen für alte Flashcards
+- **Animation:** Framer Motion v12.23+ (Phase-Transitions, Card-Flips)
+- **AI SDK:** Vercel AI SDK v5 (`ai`, `@ai-sdk/openai`, `@ai-sdk/react`, `@ai-sdk/rsc`) für Dialog-Phase mit `streamUI`
 
 ### Backend & Services
 
@@ -35,8 +46,9 @@
 | **Supabase**            | PostgreSQL Datenbank + Storage                                      | ✅ Konfiguriert              |
 | **Better-Auth**         | E-Mail/Passwort + Magic Link Auth                                   | ✅ Vollständig implementiert |
 | **Better-Auth-Harmony** | Email-Normalisierung + Validierung (55k+ Wegwerf-Domains blockiert) | ✅ Implementiert             |
-| **Resend**              | Transaktionale E-Mails (Magic Links)                                | ✅ Implementiert             |
-| **OpenAI / LLM API**    | KI-Generierung von Flashcards (direkt im Backend)                   | ✅ Implementiert             |
+| **Unsend**              | Transaktionale E-Mails (Magic Links, Email Change Verification)     | ✅ Implementiert (ersetzt Resend) |
+| **OpenAI / LLM API**    | KI-Generierung (4 verschiedene Models für Dialog, Story, Quiz, Topics) | ✅ Vollständig implementiert |
+| **Vercel AI SDK v5**    | Server Actions mit `streamUI` für Dialog-Phase                      | ✅ Implementiert             |
 | **Stripe**              | Zahlungen & Abonnements                                             | ❌ Geplant (Phase 2)         |
 | **Upstash Redis**       | Rate Limiting für Free-Tier                                         | ❌ Geplant (Phase 2)         |
 
@@ -126,25 +138,60 @@ updated_at TIMESTAMP DEFAULT NOW()
 id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE
 topic TEXT NOT NULL -- z.B. "Quantum Computing Basics"
+refined_topic TEXT -- ✅ NEU: Verfeinertes Topic vom Topic Suggestion System
 lesson_type TEXT NOT NULL CHECK (lesson_type IN ('micro_dose', 'deep_dive'))
 status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed'))
+current_phase TEXT DEFAULT 'dialog' CHECK (current_phase IN ('dialog', 'story', 'quiz', 'completed')) -- ✅ NEU: Interactive Learning Phase
 created_at TIMESTAMP DEFAULT NOW()
 completed_at TIMESTAMP
 ```
+
+**Hinweis:** `current_phase` ist nur für neue Lessons (Interactive Learning) gesetzt. Alte Lessons ohne `current_phase` nutzen das klassische Flashcard-System.
 
 #### Tabelle: `flashcard`
 
 ```sql
 id UUID PRIMARY KEY DEFAULT gen_random_uuid()
 lesson_id UUID REFERENCES lesson(id) ON DELETE CASCADE
-question TEXT NOT NULL
+question TEXT NOT NULL -- LEGACY: Flashcard-Frage (alte Lessons)
+answer TEXT -- ✅ NEU: Explanatory text (150-300 Wörter) für Interactive Learning
 thesys_json JSONB -- LEGACY: Strukturierter JSON-Output (alte Flashcards)
-visualizations JSONB DEFAULT '[]'::jsonb -- NEU: Array von D3.js-Visualisierungen
+visualizations JSONB DEFAULT '[]'::jsonb -- LEGACY: Array von D3.js-Visualisierungen
+learning_content JSONB DEFAULT '{}'::jsonb -- ✅ NEU: Story-Kapitel oder Quiz-Fragen (Interactive Learning)
+phase TEXT CHECK (phase IN ('dialog', 'story', 'quiz')) -- ✅ NEU: Zu welcher Phase gehört diese Karte?
+order_index INT DEFAULT 0 -- ✅ NEU: Reihenfolge der Kapitel/Fragen
 is_learned BOOLEAN DEFAULT FALSE
 created_at TIMESTAMP DEFAULT NOW()
 ```
 
-**Visualizations-Struktur (JSONB Array):**
+**`learning_content` Struktur (Interactive Learning):**
+
+```json
+// Story-Kapitel (phase = 'story')
+{
+  "chapterNumber": 1,
+  "title": "Die Grundlagen",
+  "content": "Detaillierte Erklärung...",
+  "visualization": {
+    "type": "timeline",
+    "data": [...], // Recharts-kompatible Daten
+    "config": {...}
+  }
+}
+
+// Quiz-Frage (phase = 'quiz')
+{
+  "questionText": "Was ist React?",
+  "options": [
+    { "id": "a", "text": "Library", "isCorrect": true },
+    { "id": "b", "text": "Framework", "isCorrect": false }
+  ],
+  "explanation": "React ist eine JavaScript-Library...",
+  "difficulty": "medium"
+}
+```
+
+**LEGACY `visualizations` Struktur (alte Flashcards):**
 
 ```json
 [
@@ -157,14 +204,37 @@ created_at TIMESTAMP DEFAULT NOW()
         { "id": "2", "label": "Detail", "type": "detail" }
       ],
       "links": [{ "source": "1", "target": "2", "label": "erklärt" }],
-      "config": {
-        "nodeRadius": 50,
-        "linkDistance": 120
-      }
+      "config": { "nodeRadius": 50, "linkDistance": 120 }
     }
   }
 ]
 ```
+
+#### Tabelle: `lesson_score` ✅ NEU: Interactive Learning Score-System
+
+```sql
+id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+lesson_id UUID NOT NULL REFERENCES lesson(id) ON DELETE CASCADE
+user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE
+dialog_score INT DEFAULT 0 -- Knowledge Assessment Score (0-100, nicht gewertet)
+story_engagement_score INT DEFAULT 0 -- Story-Engagement (0-100, informativ)
+quiz_score INT DEFAULT 0 -- Quiz Score (0-100, einziger gewerteter Score)
+total_score INT DEFAULT 0 -- Auto-berechnet: total_score = quiz_score (V1.2)
+correct_answers INT DEFAULT 0
+total_questions INT DEFAULT 0
+time_spent_seconds INT DEFAULT 0
+created_at TIMESTAMP DEFAULT NOW()
+updated_at TIMESTAMP DEFAULT NOW()
+UNIQUE(lesson_id, user_id)
+```
+
+**Wichtige Details:**
+- **V1.2 Änderung (2025-10-16):** `total_score = quiz_score` (vereinfachte Berechnung)
+  - Grund: Dialog-Score war unfair, da LLM vorzeitig abbrechen konnte
+  - Nur Quiz-Performance zählt für finale Bewertung
+  - Dialog & Story bleiben wertvoll für Personalisierung
+- **Trigger-Funktion:** `update_lesson_total_score()` aktualisiert automatisch `total_score` nach jedem Update
+- **Siehe:** [INTERACTIVE-LEARNING.md](./INTERACTIVE-LEARNING.md) für vollständige Score-Logik
 
 #### Tabelle: `payment_subscription` (Phase 2)
 
@@ -187,42 +257,69 @@ lernfast/
 ├── app/
 │   ├── api/
 │   │   ├── auth/[...all]/route.ts    # ✅ Better-Auth Handler
-│   │   ├── trigger-lesson/route.ts   # ✅ KI-Generierung + Cache-Invalidierung
-│   │   ├── render-mermaid/route.ts   # ✅ Serverseitiges Mermaid SVG-Rendering
+│   │   ├── trigger-lesson/route.ts   # ✅ KI-Generierung (Interactive Learning: Dialog + Story + Quiz)
+│   │   ├── suggest-topics/route.ts   # ✅ NEU: KI-generierte Topic-Vorschläge (3 verfeinerte Optionen)
+│   │   ├── render-mermaid/route.ts   # ✅ Serverseitiges Mermaid SVG-Rendering (Legacy)
+│   │   ├── debug/route.ts            # ✅ NEU: Debug-Endpoint für ENV-Variablen
 │   │   ├── flashcard/
 │   │   │   └── mark-learned/route.ts # ✅ Flashcard als gelernt markieren
 │   │   ├── lesson/
-│   │   │   └── delete/route.ts       # ✅ Lesson löschen + Cache-Invalidierung
+│   │   │   ├── delete/route.ts       # ✅ Lesson löschen + Cache-Invalidierung
+│   │   │   ├── update-phase/route.ts # ✅ NEU: Phase-Wechsel (dialog → story → quiz → completed)
+│   │   │   └── update-score/route.ts # ✅ NEU: Score-Update (dialog_score, quiz_score, total_score)
 │   │   └── profile/update/route.ts   # ✅ Profil-Update + Cache-Invalidierung
 │   ├── auth/
 │   │   └── page.tsx                  # ✅ Auth UI (Login/Register/Magic Link)
 │   ├── dashboard/
 │   │   ├── page.tsx                  # ✅ User Dashboard (mit Caching)
 │   │   └── profile/page.tsx          # ✅ Profil-Seite (Server Component)
-│   ├── lesson/[id]/page.tsx          # ✅ Flashcard Viewer (mit Caching)
-│   ├── page.tsx                      # ✅ Landing Page mit Input + Navbar
+│   ├── lesson/[id]/
+│   │   ├── page.tsx                  # ✅ Hybrid Lesson Viewer (Interactive Learning + Legacy Flashcards)
+│   │   └── actions.tsx               # ✅ NEU: Server Actions (Dialog, Story, Quiz Generation via Vercel AI SDK)
+│   ├── not-found.tsx                 # ✅ NEU: 404-Seite mit Hamster-Maskottchen + interaktivem Quiz
+│   ├── page.tsx                      # ✅ Landing Page mit Input + Topic Suggestions
 │   ├── layout.tsx                    # ✅ Root Layout
 │   └── globals.css                   # ✅ Neobrutalismus CSS Variables
 │
 ├── components/
-│   ├── ui/                           # ✅ Neobrutalismus UI-Komponenten
+│   ├── ui/                           # ✅ Neobrutalismus UI-Komponenten (25+ Komponenten)
 │   │   ├── input.tsx
 │   │   ├── button.tsx
 │   │   ├── card.tsx
 │   │   ├── tabs.tsx
 │   │   ├── avatar.tsx
 │   │   ├── dropdown-menu.tsx
+│   │   ├── progress.tsx              # ✅ NEU: Progress Bar (für Dialog-Phase Limit)
 │   │   └── hamster-spinner.tsx       # ✅ Loading Animation
 │   ├── navbar.tsx                    # ✅ Transparente Navbar mit Avatar
 │   ├── loading-modal.tsx             # ✅ Loading Modal für KI-Generierung
-│   ├── flashcard/                    # ✅ Flashcard-Komponenten
+│   ├── learning/                     # ✅ NEU: Interactive Learning Components (9 Dateien)
+│   │   ├── dialog-phase.tsx          # Chat-Interface für Knowledge-Assessment
+│   │   ├── story-phase.tsx           # Kapitel-Navigation mit Recharts-Visualisierungen
+│   │   ├── quiz-phase.tsx            # Multiple-Choice Quiz mit adaptive Difficulty
+│   │   ├── learning-progress.tsx     # Phase-Progress Indicator (Dialog → Story → Quiz)
+│   │   ├── completion-screen.tsx     # Erfolgs-Screen mit Score-Anzeige
+│   │   ├── modern-visualization.tsx  # Recharts: Timeline, Comparison, Process, Concept-Map
+│   │   └── README.md                 # Component-Dokumentation
+│   ├── landing/                      # ✅ NEU: Landing Page Components (4 Dateien)
+│   │   ├── features-section.tsx      # Feature-Showcase
+│   │   ├── footer.tsx                # Footer mit Links
+│   │   ├── gradient-background.tsx   # Animierter Gradient-Hintergrund
+│   │   └── topic-selection-modal.tsx # Modal für KI-generierte Topic-Vorschläge
+│   ├── not-found/                    # ✅ NEU: 404 Page Components (4 Dateien)
+│   │   ├── hamster-404.tsx           # 404 mit Hamster-Maskottchen
+│   │   ├── page-finder-quiz.tsx      # Interaktives Quiz zum Finden der richtigen Seite
+│   │   ├── simple-quiz.tsx           # Vereinfachte Quiz-Komponente
+│   │   └── fun-facts.ts              # Humorvolle Fakten
+│   ├── flashcard/                    # ✅ Flashcard-Komponenten (LEGACY für alte Lessons)
 │   │   ├── flashcard.tsx
 │   │   ├── flashcard-viewer.tsx
-│   │   └── mermaid-visualization.tsx # ✅ Mermaid SVG Rendering
+│   │   ├── d3-visualization.tsx      # D3.js Rendering (force-directed, hierarchical, radial, cluster)
+│   │   └── mermaid-visualization.tsx # Mermaid SVG Rendering
 │   └── dashboard/                    # ✅ Dashboard-Komponenten
 │       ├── lesson-list.tsx
-│       ├── lesson-card.tsx
-│       └── profile-form.tsx          # ✅ Client Component für Form-Logik
+│       ├── lesson-card.tsx           # Zeigt quiz_score + Phase-Status
+│       └── profile-form.tsx          # Client Component für Form-Logik
 │
 ├── lib/
 │   ├── auth.ts                       # ✅ Better-Auth Server (Magic Link + Email/Password)
@@ -231,14 +328,17 @@ lernfast/
 │   │   ├── client.ts
 │   │   ├── server.ts
 │   │   ├── middleware.ts
-│   │   └── queries.ts                # ✅ Gecachte Supabase Queries (NEW!)
-│   ├── lesson.types.ts               # ✅ TypeScript Types für Lessons
+│   │   └── queries.ts                # ✅ Gecachte Supabase Queries (Phase 1.5)
+│   ├── lesson.types.ts               # ✅ TypeScript Types für Lessons (inkl. Interactive Learning)
+│   ├── score.types.ts                # ✅ NEU: TypeScript Types für Score-System (LessonScore, QuizStats, etc.)
 │   ├── profile.types.ts              # ✅ TypeScript Types für Profile
 │   └── utils.ts                      # ✅ Utility-Funktionen (cn, sanitizeMermaidCode)
 │
-├── supabase/migrations/              # ✅ Datenbank-Migrationen
+├── supabase/migrations/              # ⚠️ Datenbank-Migrationen (aktuell leer - siehe MIGRATIONS.md)
 ├── masterplan.md                     # 📄 Detaillierte Projekt-Roadmap
-├── CLAUDE.md                         # 📄 Dieses Dokument
+├── CLAUDE.md                         # 📄 Dieses Dokument (Gesamt-Überblick)
+├── INTERACTIVE-LEARNING.md           # 📄 3-Phasen-Lernsystem (Dialog, Story, Quiz)
+├── DIALOG_LIMIT_TEST.md              # 📄 Test-Guide für Dialog-Phase Limit (V1.1)
 └── example.env                       # 🔑 Umgebungsvariablen-Template
 ```
 
@@ -378,36 +478,63 @@ lernfast/
 
 ---
 
-## KI-Pipeline Workflow (Backend-Integration)
+## KI-Pipeline Workflow (Interactive Learning)
 
-**Status:** ✅ Implementiert
+**Status:** ✅ Vollständig implementiert (Interactive Learning V1.2)
 
 ### Architektur:
 
 ```
 User Input (Homepage/Dashboard)
+    ↓ Optional: /api/suggest-topics → 3 verfeinerte Vorschläge
+User wählt Topic
     ↓ POST /api/trigger-lesson: { topic, lessonType }
 Next.js API Route (Server-Side)
     ↓
 1. Auth Check (Better-Auth Session)
     ↓
-2. Create Lesson Entry (Supabase: status='pending')
+2. Create Lesson Entry (Supabase: status='pending', current_phase='dialog')
     ↓
-3. LLM API Call (OpenAI/Alternative)
-   - Prompt Engineering (Few-Shot)
-   - JSON-Output mit strukturierten Flashcards
+3. Research-Phase (OpenAI)
+   - Model: OPENAI_MICRO_DOSE_MODEL oder OPENAI_DEEP_DIVE_MODEL
+   - Generiert strukturierte Lerninhalte (Facts, Examples, Concepts)
     ↓
-4. Parse & Validate Response
+4. Content-Generierung (OpenAI mit OPENAI_STRUCTURE_MODEL)
+   - Story: 3-5 Kapitel mit Recharts-Visualisierungen
+   - Quiz: 5-7 Multiple-Choice Fragen
     ↓
-5. Store Flashcards in DB (Supabase)
+5. Store Content in DB (Supabase flashcard table)
+   - Story-Kapitel: phase='story', learning_content={...}
+   - Quiz-Fragen: phase='quiz', learning_content={...}
     ↓
 6. Update Lesson Status → 'completed'
     ↓
 Response: { lessonId, status }
     ↓
 Client: Redirect zu /lesson/[id]
-    ↓ (Optional in Phase 3)
-Resend E-Mail-Benachrichtigung
+    ↓
+=== INTERACTIVE LEARNING START ===
+    ↓
+Dialog-Phase (💬) - Live via Vercel AI SDK streamUI
+  - Max. 5 User-Antworten (V1.1 - Hard Limit)
+  - Knowledge Assessment → dialog_score (0-100, nicht gewertet)
+  - Server Action: continueDialog(), forceAssessment()
+    ↓ POST /api/lesson/update-phase: { phase: 'story' }
+Story-Phase (📖)
+  - 3-5 Kapitel mit Recharts-Visualisierungen
+  - Kapitel-Navigation (Vor/Zurück)
+    ↓ POST /api/lesson/update-phase: { phase: 'quiz' }
+Quiz-Phase (🎯)
+  - 5-7 Multiple-Choice Fragen
+  - Adaptive Difficulty via Tool Calls
+  - Quiz-Score → quiz_score (0-100, einziger gewerteter Score)
+  - POST /api/lesson/update-score: { quiz_score, total_score }
+    ↓
+Completion (🎉)
+  - total_score = quiz_score (V1.2 - vereinfachte Berechnung)
+  - Erfolgs-Screen mit Badge
+    ↓ POST /api/lesson/update-phase: { phase: 'completed' }
+=== INTERACTIVE LEARNING END ===
 ```
 
 ### Implementierungsdetails:
@@ -452,6 +579,96 @@ Resend E-Mail-Benachrichtigung
 - Bei Parsing-Fehler → Retry mit angepasstem Prompt
 - Bei DB-Fehler → Transaction Rollback
 - User-Feedback über Loading Modal
+
+---
+
+## Topic Suggestion System ✅ NEU
+
+**Status:** ✅ Vollständig implementiert
+
+### Übersicht
+
+Das Topic Suggestion System hilft Usern, präzisere Lernthemen zu formulieren. Wenn ein User ein grobes Thema eingibt (z.B. "React"), generiert die KI 3 verfeinerte Vorschläge mit Emoji und Beschreibung.
+
+### Workflow
+
+```
+User gibt grobes Thema ein (z.B. "React")
+    ↓
+Frontend öffnet Topic Selection Modal
+    ↓
+POST /api/suggest-topics: { topic: "React", lessonType: "micro_dose" }
+    ↓
+OpenAI (OPENAI_SELECTION_MODEL = gpt-4o-mini)
+  - Generiert 3 verfeinerte Topic-Vorschläge
+  - Format: { emoji, title, description }
+    ↓
+Response: { suggestions: [...] }
+    ↓
+User wählt einen Vorschlag
+    ↓
+Speichere in lesson.refined_topic
+    ↓
+Weiter zu /api/trigger-lesson
+```
+
+### API Endpoint
+
+**Route:** `POST /api/suggest-topics`
+
+**Input:**
+
+```typescript
+{
+  topic: string;           // Grobes Thema (z.B. "React")
+  lessonType: "micro_dose" | "deep_dive";
+}
+```
+
+**Output:**
+
+```typescript
+{
+  suggestions: Array<{
+    emoji: string;         // z.B. "⚛️"
+    title: string;         // z.B. "React Hooks Grundlagen"
+    description: string;   // z.B. "Lerne useState, useEffect und Custom Hooks"
+  }>;
+}
+```
+
+### Beispiel-Output
+
+**User-Input:** "React"
+
+**KI-Vorschläge:**
+
+1. ⚛️ **React Hooks Grundlagen**
+   - Lerne useState, useEffect und Custom Hooks in 5 Minuten
+
+2. 🎨 **React Styling-Strategien**
+   - CSS Modules, Styled Components und Tailwind im Vergleich
+
+3. 🔄 **React State Management**
+   - Context API vs Redux - Wann nutze ich was?
+
+### Komponenten
+
+- **Frontend:** `components/landing/topic-selection-modal.tsx`
+- **API Route:** `app/api/suggest-topics/route.ts`
+- **Model:** `OPENAI_SELECTION_MODEL` (gpt-4o-mini - schnell & günstig)
+
+### Prompt Engineering
+
+Die KI erhält folgende Instruktionen:
+
+- Generiere **genau 3** Vorschläge
+- Jeder Vorschlag muss ein passendes Emoji haben
+- Titel: Kurz & prägnant (max. 50 Zeichen)
+- Beschreibung: Konkret & lernzielorientiert (max. 100 Zeichen)
+- Angepasst an `lessonType`:
+  - `micro_dose`: Schnelle Einführungen, Grundlagen
+  - `deep_dive`: Fortgeschrittene Themen, Vergleiche, Best Practices
 
 ---
 
@@ -695,6 +912,321 @@ export interface Visualization {
 
 ---
 
+## Hybrid System: Interactive Learning + Legacy Flashcards ✅ NEU
+
+**Status:** ✅ Vollständig implementiert (Backward Compatibility)
+
+### Übersicht
+
+Die Codebase unterstützt **zwei verschiedene Lernsysteme** parallel, um Backward Compatibility mit alten Lessons zu gewährleisten:
+
+1. **Interactive Learning** (NEU) - 3-Phasen-System (Dialog → Story → Quiz)
+2. **Legacy Flashcards** (ALT) - Klassisches Swipeable-Karten-Interface mit D3.js-Visualisierungen
+
+### Entscheidungs-Logik
+
+Die Lesson-Viewer-Page (`app/lesson/[id]/page.tsx`) erkennt automatisch, welches System zu verwenden ist:
+
+```typescript
+const isInteractiveLearning = !!lessonWithFlashcards.current_phase;
+
+if (!isInteractiveLearning) {
+  // LEGACY: Klassisches Flashcard-System
+  return <FlashcardViewer flashcards={flashcards} />;
+}
+
+// NEU: Interactive Learning
+switch (lessonWithFlashcards.current_phase) {
+  case 'dialog':
+    return <DialogPhase />;
+  case 'story':
+    return <StoryPhase flashcards={storyChapters} />;
+  case 'quiz':
+    return <QuizPhase flashcards={quizQuestions} />;
+  case 'completed':
+    return <CompletionScreen score={lessonScore} />;
+}
+```
+
+### Erkennungsmerkmale
+
+| Feld | Legacy Flashcards | Interactive Learning |
+|------|-------------------|----------------------|
+| `lesson.current_phase` | `NULL` | `'dialog' \| 'story' \| 'quiz' \| 'completed'` |
+| `flashcard.phase` | `NULL` | `'dialog' \| 'story' \| 'quiz'` |
+| `flashcard.learning_content` | `{}` (leer) | Story/Quiz-Daten |
+| `flashcard.visualizations` | D3.js-Daten | `[]` (leer) |
+| `flashcard.thesys_json` | Thesys-Daten (optional) | `NULL` |
+| `lesson_score` Eintrag | Nicht vorhanden | Vorhanden |
+
+### Komponenten-Aufteilung
+
+**Interactive Learning (`/components/learning/`):**
+- `dialog-phase.tsx` - Chat-Interface mit Vercel AI SDK
+- `story-phase.tsx` - Kapitel-Navigation mit Recharts
+- `quiz-phase.tsx` - Multiple-Choice Quiz
+- `learning-progress.tsx` - Phase-Progress Indicator
+- `completion-screen.tsx` - Erfolgs-Screen
+- `modern-visualization.tsx` - Recharts Charts
+
+**Legacy Flashcards (`/components/flashcard/`):**
+- `flashcard-viewer.tsx` - Swipeable Card-Interface
+- `flashcard.tsx` - Einzelne Flashcard
+- `d3-visualization.tsx` - D3.js Rendering
+- `mermaid-visualization.tsx` - Mermaid SVG Rendering
+
+### Dashboard-Anzeige
+
+Die Lesson-Card im Dashboard zeigt unterschiedliche Informationen:
+
+**Interactive Learning:**
+```tsx
+<LessonCard
+  title={lesson.topic}
+  status={lesson.current_phase} // "dialog", "story", "quiz", "completed"
+  score={lessonScore?.quiz_score} // Quiz-Score mit Progress-Bar
+  buttonText={currentPhase === 'completed' ? 'Ergebnis ansehen' : 'Weiter lernen'}
+/>
+```
+
+**Legacy Flashcards:**
+```tsx
+<LessonCard
+  title={lesson.topic}
+  status={lesson.status} // "completed"
+  flashcardCount={flashcards.length}
+  learnedCount={flashcards.filter(f => f.is_learned).length}
+  buttonText="Flashcards ansehen"
+/>
+```
+
+### Migration-Strategie
+
+**Aktueller Stand:**
+- Keine automatische Migration geplant
+- Alte Lessons bleiben im Legacy-System
+- Neue Lessons nutzen Interactive Learning
+
+**Mögliche zukünftige Migration:**
+1. User öffnet alte Lesson
+2. Button: "Zu Interactive Learning upgraden"
+3. Backend regeneriert Content mit neuem System
+4. Setzt `current_phase='dialog'` und erstellt Story/Quiz-Content
+
+### Vorteile des Hybrid-Systems
+
+- ✅ **Keine Breaking Changes** - Alte Lessons funktionieren weiterhin
+- ✅ **Schrittweise Adoption** - Neue Features ohne Zwang
+- ✅ **Datenintegrität** - Keine Datenmigration nötig
+- ✅ **User Experience** - Nahtlose Transition zwischen Systemen
+- ✅ **Development Velocity** - Schnelle Iteration ohne Backward-Compatibility-Sorgen
+
+---
+
+## Server Actions mit Vercel AI SDK v5 ✅ NEU
+
+**Status:** ✅ Vollständig implementiert
+
+### Übersicht
+
+Die Dialog-Phase nutzt **Vercel AI SDK v5** mit `streamUI` für live-generierte Chat-Nachrichten. Server Actions ermöglichen direkte KI-Integration ohne separate API-Routes.
+
+### Datei-Struktur
+
+**Haupt-Datei:** `app/lesson/[id]/actions.tsx`
+
+### Implementierte Server Actions
+
+#### 1. `continueDialog()`
+
+Generiert die nächste KI-Antwort im Dialog-Flow.
+
+```typescript
+export async function continueDialog(
+  lessonId: string,
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  turnCount: number
+): Promise<ReactNode> {
+  // Vercel AI SDK streamUI
+  const result = await streamUI({
+    model: openai(process.env.OPENAI_STRUCTURE_MODEL!),
+    system: '...',
+    messages,
+    tools: {
+      assessKnowledge: {
+        description: 'Bewertet Vorwissen des Users',
+        parameters: z.object({
+          score: z.number().min(0).max(100),
+          reasoning: z.string()
+        }),
+        generate: async ({ score, reasoning }) => {
+          // Speichere dialog_score in lesson_score Tabelle
+          // Setze current_phase='story'
+          return <AssessmentResult score={score} />;
+        }
+      }
+    }
+  });
+
+  return result.value;
+}
+```
+
+**Features:**
+- Live-Streaming der KI-Antworten (Token-by-Token)
+- Tool Calls für Knowledge Assessment
+- Automatischer Phase-Wechsel nach Assessment
+
+#### 2. `forceAssessment()`
+
+Erzwingt Assessment nach 5. User-Antwort (V1.1 - Dialog Limit).
+
+```typescript
+export async function forceAssessment(
+  lessonId: string,
+  messages: Array<Message>
+): Promise<ReactNode> {
+  // Direkter Tool Call ohne weiteren Dialog
+  const result = await streamUI({
+    model: openai(process.env.OPENAI_STRUCTURE_MODEL!),
+    system: 'Du MUSST jetzt assessKnowledge aufrufen.',
+    messages: [
+      ...messages,
+      { role: 'user', content: '[SYSTEM: Force Assessment]' }
+    ],
+    tools: { assessKnowledge: { ... } },
+    maxSteps: 1 // Nur ein Tool Call
+  });
+
+  return result.value;
+}
+```
+
+**Zweck:**
+- Verhindert endlose Dialoge
+- Garantiert Übergang zu Story-Phase
+- Siehe [DIALOG_LIMIT_TEST.md](./DIALOG_LIMIT_TEST.md) für Test-Dokumentation
+
+#### 3. `adaptDifficulty()` (geplant)
+
+Adaptive Quiz-Schwierigkeit basierend auf Performance.
+
+```typescript
+export async function adaptDifficulty(
+  lessonId: string,
+  correctAnswers: number,
+  totalQuestions: number
+): Promise<'easy' | 'medium' | 'hard'> {
+  // Tool Call: adjustDifficulty
+  // Erhöht/Senkt Schwierigkeit basierend auf Erfolgsrate
+}
+```
+
+### Tool Definitions
+
+**`assessKnowledge`:**
+```typescript
+{
+  description: 'Bewertet das Vorwissen des Users (0-100 Punkte)',
+  parameters: z.object({
+    score: z.number().min(0).max(100).describe('Wissenslevel: 0=Anfänger, 100=Experte'),
+    reasoning: z.string().describe('Begründung für die Bewertung')
+  })
+}
+```
+
+**`adjustDifficulty`:** (geplant)
+```typescript
+{
+  description: 'Passt Quiz-Schwierigkeit an Performance an',
+  parameters: z.object({
+    newDifficulty: z.enum(['easy', 'medium', 'hard']),
+    reason: z.string()
+  })
+}
+```
+
+### Vorteile von Server Actions
+
+- ✅ **Kein extra API-Endpoint** - Direkt in Page-Component
+- ✅ **Type-Safety** - TypeScript end-to-end
+- ✅ **Streaming** - Token-by-Token Rendering
+- ✅ **Tool Calls** - Native Integration mit OpenAI Functions
+- ✅ **React Components** - Direkte JSX-Rückgabe
+
+---
+
+## Score-System Updates (V1.1 & V1.2) ✅ NEU
+
+### V1.1 - Dialog-Phase Limit (2025-10-15)
+
+**Problem:** Dialog dauerte zu lange (unbegrenzte Fragen)
+
+**Lösung:**
+- **Max. 5 User-Antworten** (Hard Limit)
+- `forceAssessment()` nach 5. Frage
+- UI: Progress-Bar (Grün → Gelb → Orange)
+- Warning-Message bei letzter Frage
+
+**Implementation:**
+```typescript
+// Dialog-Phase Component
+const [turnCount, setTurnCount] = useState(0);
+const MAX_TURNS = 5;
+
+if (turnCount >= MAX_TURNS) {
+  // Automatisches Assessment
+  const result = await forceAssessment(lessonId, messages);
+  // Weiter zu Story-Phase
+}
+```
+
+**Dokumentation:** [DIALOG_LIMIT_TEST.md](./DIALOG_LIMIT_TEST.md)
+
+### V1.2 - Vereinfachte Score-Berechnung (2025-10-16)
+
+**Problem:** Dialog-Score (20%) war unfair, da LLM vorzeitig abbrechen konnte
+
+**Alte Formel:**
+```
+total_score = (dialog_score * 0.2) + (quiz_score * 0.8)
+```
+
+**Neue Formel (V1.2):**
+```sql
+total_score = quiz_score
+```
+
+**Begründung:**
+1. **Objektivität:** Quiz hat klare richtig/falsch Antworten
+2. **User-Kontrolle:** Quiz-Performance ist vollständig user-gesteuert
+3. **Transparenz:** User versteht Score-Berechnung besser
+
+**Dialog & Story bleiben wertvoll für:**
+- Personalisierte Story-Generierung
+- Adaptive Quiz-Schwierigkeit
+- Lernstil-Erkennung
+
+**Trigger-Funktion:**
+```sql
+CREATE OR REPLACE FUNCTION update_lesson_total_score()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.total_score := NEW.quiz_score;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_update_total_score
+BEFORE INSERT OR UPDATE ON lesson_score
+FOR EACH ROW
+EXECUTE FUNCTION update_lesson_total_score();
+```
+
+**Dokumentation:** [INTERACTIVE-LEARNING.md](./INTERACTIVE-LEARNING.md) - Version 1.2
+
+---
+
 ## Umgebungsvariablen (.env.local)
 
 ```bash
@@ -714,8 +1246,17 @@ NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
 UNSEND_API_KEY=us_your_api_key_here  # Get from: https://unsend.dev
 UNSEND_BASE_URL=https://your-unsend-instance.com  # Optional: Nur für self-hosted Instanzen
 
-# OpenAI / LLM API (SERVER-ONLY - für KI-Generierung)
+# OpenAI / LLM API (SERVER-ONLY - 4 verschiedene Models für Interactive Learning)
 OPENAI_API_KEY=sk-proj-...  # Get from: https://platform.openai.com/api-keys
+
+# ✅ NEU: Model-spezifische Konfiguration (Interactive Learning)
+OPENAI_SELECTION_MODEL=gpt-4o-mini          # Topic Suggestions (schnell, günstig)
+OPENAI_MICRO_DOSE_MODEL=gpt-4o-mini         # Research für Micro-Dose Lessons
+OPENAI_DEEP_DIVE_MODEL=o1-mini              # Research für Deep-Dive Lessons (fortgeschritten)
+OPENAI_STRUCTURE_MODEL=gpt-4o-mini          # Story + Quiz Generation (strukturierte Outputs)
+
+# Hinweis: OPENAI_API_KEY wird für alle Models verwendet, die spezifischen
+# Model-Namen definieren welches Model für welchen Task genutzt wird.
 # Alternativ: ANTHROPIC_API_KEY, GOOGLE_AI_API_KEY, etc.
 
 # Stripe (Phase 2 - noch nicht implementiert)
@@ -1083,19 +1624,27 @@ export const getCachedFlashcardsByTopic = unstable_cache(
 
 ---
 
-**Letzte Aktualisierung:** 2025-10-13 (D3.js Integration im Branch `d3js`)
-**Projekt-Status:** Phase 1.5 (MVP + Performance-Optimierung + D3.js) abgeschlossen ✅ | Phase 2 (Monetarisierung) als nächstes
+**Letzte Aktualisierung:** 2025-10-16 (Interactive Learning V1.2 + CLAUDE.md Vollständige Aktualisierung)
+**Projekt-Status:** Phase 1.5 + Interactive Learning abgeschlossen ✅ | Phase 2 (Monetarisierung) als nächstes
 
-**Neue Features (Phase 1.5 + D3.js Branch):**
+**Neueste Features (Stand 2025-10-16):**
 
+- ✅ **Interactive Learning System V1.2:** 3-Phasen-Workflow (Dialog → Story → Quiz) mit vereinfachter Score-Berechnung
+- ✅ **Dialog-Phase Limit (V1.1):** Max. 5 User-Antworten mit automatischem Assessment
+- ✅ **Vereinfachte Scores (V1.2):** `total_score = quiz_score` (nur Quiz zählt)
+- ✅ **Vercel AI SDK v5:** Server Actions mit `streamUI` für live Dialog-Generierung
+- ✅ **Topic Suggestion System:** KI-generierte Topic-Vorschläge mit 3 verfeinerten Optionen
+- ✅ **Recharts Integration:** Moderne Charts (Timeline, Comparison, Process, Concept-Map)
+- ✅ **Hybrid System:** Backward Compatibility mit alten Flashcards + neues Interactive Learning
+- ✅ **4 OpenAI Models:** Spezialisierte Models für Dialog, Story, Quiz und Topic-Suggestions
+- ✅ **Framer Motion:** Smooth Phase-Transitions und Card-Flip Animationen
 - ✅ **Next.js 15 Caching:** Server-side Caching mit `unstable_cache` (86% schneller)
-- ✅ **Gecachte Queries:** Zentrale Query-Funktionen in `lib/supabase/queries.ts`
-- ✅ **Server Component Optimization:** Dashboard, Lesson-Viewer, Profilseite
-- ✅ **Tag-basierte Invalidierung:** Präzise Cache-Invalidierung nach Mutationen
-- ✅ **ProfileForm Extraction:** Client Component für Form-Logik, Server Component für Daten
-- ✅ **D3.js Integration (Branch: d3js):** Interaktive Graph-Visualisierungen mit 4 Layouts
-- ✅ **Force-Directed Graphs:** Draggable Nodes für Concept Maps
-- ✅ **Hierarchical/Radial/Cluster Layouts:** Verschiedene Darstellungsformen je nach Inhalt
-- ✅ **Neobrutalismus-Styling:** Retro Palette für alle D3-Visualisierungen
-- ✅ **Responsive SVG:** ViewBox scaling für optimale Mobile-Darstellung
-- ✅ **SSR-Kompatibilität:** Isolierte Client-Component für D3-Browser-APIs
+- ✅ **D3.js Integration (Legacy):** Interaktive Graph-Visualisierungen für alte Flashcards
+- ✅ **404-Seite:** Humorvolle 404 mit Hamster-Maskottchen + interaktivem Quiz
+
+**Dokumentations-Struktur:**
+- **CLAUDE.md** (dieses Dokument) - Gesamt-Überblick über die gesamte Codebase
+- **[INTERACTIVE-LEARNING.md](./INTERACTIVE-LEARNING.md)** - Detaillierte Dokumentation des 3-Phasen-Systems
+- **[DIALOG_LIMIT_TEST.md](./DIALOG_LIMIT_TEST.md)** - Test-Guide für Dialog-Phase Limit
+- **[MIGRATIONS.md](./MIGRATIONS.md)** - Datenbank-Migrationen *(in Erstellung)*
+- **[TOPIC-SUGGESTIONS.md](./TOPIC-SUGGESTIONS.md)** - Topic Suggestion System *(geplant)*

@@ -50,7 +50,7 @@ export function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-[100] ${
+      className={`fixed top-0 left-0 right-0 z-50 ${
         pathname === "/"
           ? "bg-transparent"
           : "bg-background border-b-4 border-border shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"

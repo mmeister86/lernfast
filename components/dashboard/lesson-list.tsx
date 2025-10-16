@@ -4,14 +4,17 @@ import { useState } from "react";
 import { LessonCard } from "./lesson-card";
 import { Button } from "@/components/ui/button";
 import type { LessonWithCount } from "@/lib/lesson.types";
+import type { LessonScore } from "@/lib/score.types";
 
 type LessonListProps = {
   lessons: LessonWithCount[];
+  scores: Record<string, LessonScore>;
   error: string | null;
 };
 
 export function LessonList({
   lessons: initialLessons,
+  scores,
   error,
 }: LessonListProps) {
   const [lessons, setLessons] = useState<LessonWithCount[]>(initialLessons);
@@ -120,6 +123,7 @@ export function LessonList({
             <LessonCard
               key={lesson.id}
               lesson={lesson}
+              score={scores[lesson.id] || null}
               onDelete={handleDelete}
             />
           ))}

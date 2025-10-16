@@ -30,9 +30,12 @@ import type {
   LessonType,
   LessonWithCount,
 } from "@/lib/lesson.types";
+import type { LessonScore } from "@/lib/score.types";
+import { Badge } from "@/components/ui/badge";
 
 type LessonCardProps = {
   lesson: LessonWithCount;
+  score?: LessonScore | null;
   onDelete?: (lessonId: string) => Promise<void>;
 };
 
@@ -70,7 +73,7 @@ const TYPE_CONFIG = {
   },
 };
 
-export function LessonCard({ lesson, onDelete }: LessonCardProps) {
+export function LessonCard({ lesson, score, onDelete }: LessonCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const statusConfig = STATUS_CONFIG[lesson.status];
   const typeConfig = TYPE_CONFIG[lesson.lesson_type];
@@ -79,6 +82,9 @@ export function LessonCard({ lesson, onDelete }: LessonCardProps) {
     addSuffix: true,
     locale: de,
   });
+
+  // Prüfe ob Interactive Learning (hat current_phase)
+  const isInteractiveLearning = !!(lesson as any).current_phase;
 
   const handleDelete = async () => {
     if (!onDelete) return;
@@ -121,7 +127,7 @@ export function LessonCard({ lesson, onDelete }: LessonCardProps) {
       </CardHeader>
 
       <CardContent>
-        {lesson.status === "completed" && (
+        {lesson.status === "completed" && !score && (
           <div className="flex items-center gap-2 text-sm">
             <span className="font-heading text-main text-lg">
               {lesson.flashcard_count}
@@ -129,6 +135,46 @@ export function LessonCard({ lesson, onDelete }: LessonCardProps) {
             <span className="text-foreground/70">
               {lesson.flashcard_count === 1 ? "Flashcard" : "Flashcards"}
             </span>
+          </div>
+        )}
+
+        {/* Score-Anzeige für Interactive Learning */}
+        {lesson.status === "completed" && score && (
+          <div className="space-y-3">
+            {/* Haupt-Score: Quiz */}
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-foreground/70">
+                    Quiz-Score
+                  </span>
+                  <span className="text-2xl font-extrabold">
+                    {score.quiz_score}%
+                  </span>
+                </div>
+                <div className="h-3 bg-gray-100 border-2 border-black rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#662CB7] to-[#00D9BE] transition-all duration-500"
+                    style={{ width: `${score.quiz_score}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Statistik-Badges */}
+            <div className="flex gap-2 flex-wrap">
+              <Badge variant="neutral" className="border-2">
+                {score.correct_answers}/{score.total_questions} richtig
+              </Badge>
+              {score.dialog_score > 0 && (
+                <Badge
+                  variant="default"
+                  className="bg-[#FFC667]/30 text-black border-2"
+                >
+                  💬 Vorwissen: {score.dialog_score}%
+                </Badge>
+              )}
+            </div>
           </div>
         )}
 
@@ -150,7 +196,9 @@ export function LessonCard({ lesson, onDelete }: LessonCardProps) {
       <CardFooter className="flex gap-2">
         {lesson.status === "completed" ? (
           <Link href={`/lesson/${lesson.id}`} className="flex-1">
-            <Button className="w-full">Flashcards ansehen</Button>
+            <Button className="w-full">
+              {isInteractiveLearning ? "Lernen starten" : "Flashcards ansehen"}
+            </Button>
           </Link>
         ) : lesson.status === "failed" ? (
           <Button variant="neutral" className="w-full" disabled>

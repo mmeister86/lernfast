@@ -5,6 +5,7 @@
 
 export type LessonStatus = "pending" | "processing" | "completed" | "failed";
 export type LessonType = "micro_dose" | "deep_dive";
+export type LearningPhase = "dialog" | "story" | "quiz" | "completed";
 
 /**
  * Topic Suggestion für Multi-Stage Workflow
@@ -28,6 +29,7 @@ export interface Lesson {
   refined_topic?: string | null; // NEU: User-selected refined topic from suggestions
   lesson_type: LessonType;
   status: LessonStatus;
+  current_phase?: LearningPhase; // NEU: Aktuelle Phase im interaktiven Workflow
   created_at: string; // ISO 8601 timestamp string von Supabase
   completed_at: string | null;
 }
@@ -103,6 +105,9 @@ export interface Flashcard {
   answer?: string | null; // NEU: Explanatory text content (150-300 words)
   thesys_json?: ThesysJSON | null; // Legacy field - wird bald entfernt
   visualizations?: Visualization[]; // Neues Feld - Array von Visualisierungen
+  learning_content?: LearningContent; // NEU: Interactive Learning Content
+  phase?: "dialog" | "story" | "quiz"; // NEU: Zu welcher Phase gehört diese Karte
+  order_index?: number; // NEU: Reihenfolge innerhalb der Phase
   is_learned: boolean;
   created_at: string; // ISO 8601 timestamp string von Supabase
 }
@@ -149,4 +154,82 @@ export interface LessonWithCount extends Lesson {
  */
 export interface LessonWithFlashcards extends Lesson {
   flashcard: Flashcard[];
+}
+
+// ============================================
+// INTERACTIVE LEARNING TYPES (NEU)
+// ============================================
+
+/**
+ * Learning Content - Phasenspezifischer Inhalt
+ */
+export interface LearningContent {
+  dialog?: DialogContent;
+  story?: StoryContent;
+  quiz?: QuizContent;
+}
+
+/**
+ * Dialog-Phase Content
+ */
+export interface DialogContent {
+  question: string;
+  expectedAnswer?: string;
+  hints?: string[];
+  followUpQuestions?: string[];
+}
+
+/**
+ * Story-Phase Content
+ */
+export interface StoryContent {
+  chapterTitle: string;
+  narrative: string;
+  keyPoints: string[];
+  visualizations: StoryVisualization[];
+}
+
+/**
+ * Moderne Visualisierungen für Story-Phase (Recharts-kompatibel)
+ */
+export interface StoryVisualization {
+  type: "timeline" | "comparison" | "process" | "concept-map";
+  title: string;
+  chartData: any[]; // Recharts-kompatible Datenstruktur
+}
+
+/**
+ * Quiz-Phase Content
+ */
+export interface QuizContent {
+  question: string;
+  options: string[]; // Array mit 4 Antworten
+  correctAnswer: number; // Index (0-3)
+  difficulty: "easy" | "medium" | "hard";
+  explanation: string;
+}
+
+/**
+ * Story Chapter für Story-Phase UI
+ */
+export interface StoryChapter {
+  title: string;
+  narrative: string;
+  keyLearnings: string[];
+  visualizationType: "timeline" | "comparison" | "process" | "concept-map";
+  visualizationData: {
+    title: string;
+    chartData: any[];
+  };
+}
+
+/**
+ * Quiz Question für Quiz-Phase UI
+ */
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  difficulty: "easy" | "medium" | "hard";
+  explanation: string;
 }

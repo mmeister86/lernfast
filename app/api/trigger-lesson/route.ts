@@ -3,28 +3,23 @@ import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { revalidateTag, revalidatePath } from "next/cache";
-import {
-  getCachedLessons,
-  getCachedLesson,
-  getCachedUserProfile,
-} from "@/lib/supabase/queries";
+import { getCachedUserProfile } from "@/lib/supabase/queries";
 import OpenAI from "openai";
 
 /**
- * POST /api/trigger-lesson
+ * POST /api/trigger-lesson (NEUE VERSION - Interactive Learning)
  *
- * Erstellt eine neue Lesson in der Datenbank und generiert KI-Lernkarten
- * direkt über OpenAI mit Thesys/C1-Format.
+ * Erstellt eine neue Interactive Learning Lesson mit 3 Phasen:
+ * 1. Dialog-Phase (initial - wird live generiert)
+ * 2. Story-Phase (3-5 Kapitel mit Visualisierungen)
+ * 3. Quiz-Phase (5-7 Fragen mit adaptivem Schwierigkeitsgrad)
  *
- * SICHERHEIT:
- * - Prüft Better-Auth Session (serverseitig)
- * - Validiert Input
- * - Rate Limiting (später mit Upstash)
- * - Premium-Check für Deep Dive (später mit Stripe)
+ * WICHTIG: Anders als altes System wird Dialog-Content NICHT vorab generiert,
+ * sondern live via streamUI in der Lesson Page erstellt.
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. AUTH CHECK: Ist User eingeloggt?
+    // 1. AUTH CHECK
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -41,7 +36,6 @@ export async function POST(request: NextRequest) {
     // Profildaten für Personalisierung laden
     const { data: userProfile } = await getCachedUserProfile(userId);
 
-    // Default-Werte für fehlende Profildaten
     const profileContext = {
       experienceLevel: userProfile?.experienceLevel || "beginner",
       preferredDifficulty: userProfile?.preferredDifficulty || "medium",
@@ -69,29 +63,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // refinedTopic ist optional (kann null sein)
     const targetTopic = refinedTopic || topic.trim();
-
-    // Kartenanzahl: Micro Dose = 3-5 (fix), Deep Dive = User-Präferenz
-    const cardCount =
-      lessonType === "micro_dose" ? "3-5" : profileContext.preferredCardCount;
-
-    // TODO: Premium-Check für Deep Dive
-    // if (lessonType === "deep_dive" && !session.user.isPremium) {
-    //   return NextResponse.json(
-    //     { error: "Deep Dive ist nur für Premium-Nutzer verfügbar." },
-    //     { status: 403 }
-    //   )
-    // }
-
-    // TODO: Rate Limiting mit Upstash
-    // const rateLimitResult = await checkRateLimit(userId)
-    // if (!rateLimitResult.success) {
-    //   return NextResponse.json(
-    //     { error: "Zu viele Anfragen. Bitte warte ein paar Minuten." },
-    //     { status: 429 }
-    //   )
-    // }
 
     // 3. OPENAI API VALIDIERUNG
     if (!process.env.OPENAI_API_KEY) {
@@ -101,7 +73,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. DATENBANK: Erstelle Lesson-Eintrag in Supabase
+    // 4. DATENBANK: Erstelle Lesson-Eintrag
     const supabase = createServiceClient();
 
     const { data: lesson, error: dbError } = await supabase
@@ -112,6 +84,7 @@ export async function POST(request: NextRequest) {
         refined_topic: refinedTopic || null,
         lesson_type: lessonType,
         status: "pending",
+        current_phase: "dialog", // Startet mit Dialog-Phase
       })
       .select()
       .single();
@@ -124,15 +97,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. MULTI-STAGE KI-GENERIERUNG (Research + Strukturierung)
+    // 5. KI-GENERIERUNG: Story + Quiz Content vorab erstellen
+    // (Dialog wird live generiert in der Lesson Page)
     try {
-      // Update Status zu 'processing'
       await supabase
         .from("lesson")
         .update({ status: "processing" })
         .eq("id", lesson.id);
 
-      // OpenAI Client initialisieren
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
       // ============================================
@@ -144,26 +116,21 @@ export async function POST(request: NextRequest) {
           ? process.env.OPENAI_MICRO_DOSE_MODEL || "gpt-4.1-mini"
           : process.env.OPENAI_DEEP_DIVE_MODEL || "o4-mini-deep-research";
 
-      const researchSystemPrompt = `Du bist ein Recherche-Experte, der tiefgehende, strukturierte Informationen zu Lernthemen sammelt.
+      const chapterCount = lessonType === "micro_dose" ? 3 : 5;
+      const questionCount = lessonType === "micro_dose" ? 5 : 7;
 
-**AUFGABE:**
-Recherchiere umfassend zum angegebenen Thema und sammle:
-1. Kernfakten und Definitionen
-2. Wichtige Konzepte und Zusammenhänge
-3. Praktische Beispiele
-4. Relevante Details für tiefes Verständnis
+      const researchSystemPrompt = `Du bist ein Recherche-Experte für interaktive Lerngeschichten.
+
+AUFGABE:
+Recherchiere umfassend zum Thema und sammle Material für:
+1. Eine fesselnde ${chapterCount}-teilige Lerngeschichte
+2. Ein ${questionCount}-Fragen Quiz zur Wissensabfrage
 
 **PERSONALISIERUNG:**
 - Erfahrungslevel: ${profileContext.experienceLevel}
 - Schwierigkeitsgrad: ${profileContext.preferredDifficulty}
 ${profileContext.age ? `- Alter: ${profileContext.age} Jahre` : ""}
-${
-  profileContext.learningGoals
-    ? `- Lernziele: ${profileContext.learningGoals}`
-    : ""
-}
-
-Passe Tiefe und Komplexität entsprechend an.
+${profileContext.learningGoals ? `- Lernziele: ${profileContext.learningGoals}` : ""}
 
 **OUTPUT-FORMAT (JSON):**
 {
@@ -186,10 +153,7 @@ Passe Tiefe und Komplexität entsprechend an.
           { role: "system", content: researchSystemPrompt },
           {
             role: "user",
-            content: `Recherchiere umfassend zum Thema: ${targetTopic}
-
-Anzahl der zu erstellenden Lernkarten: ${cardCount}
-Sammle genug Material für hochwertige, tiefgehende Lernkarten.`,
+            content: `Recherchiere umfassend zum Thema: ${targetTopic}`,
           },
         ],
         response_format: { type: "json_object" },
@@ -204,226 +168,203 @@ Sammle genug Material für hochwertige, tiefgehende Lernkarten.`,
       );
 
       // ============================================
-      // STAGE 2: STRUCTURE - D3-Visualisierungen erstellen
+      // STAGE 2: STORY GENERATION
       // ============================================
 
       const structureModel =
         process.env.OPENAI_STRUCTURE_MODEL || "gpt-4.1-mini";
 
-      const structureSystemPrompt = `Du bist ein Experte für didaktisch aufbereitete Lernkarten mit interaktiven D3.js-Graph-Visualisierungen.
+      const storySystemPrompt = `Du bist ein Storytelling-Experte, der Lerngeschichten mit interaktiven Visualisierungen erstellt.
 
-**PERSONALISIERUNG:**
-Du erhältst Profildaten des Nutzers und musst die Lernkarten entsprechend anpassen:
+**AUFGABE:**
+Erstelle eine ${chapterCount}-teilige Lerngeschichte basierend auf den Research-Daten.
 
-- **Erfahrungslevel**: Passe Komplexität und Vokabular an (beginner = einfache Sprache, advanced = Fachbegriffe)
-- **Schwierigkeitsgrad**: Bestimmt Tiefe der Erklärungen (easy = Grundlagen, hard = Details & Edge Cases)
-- **Alter**: Beeinflusst Beispiele und Ansprache (Kinder = spielerisch, Erwachsene = professionell)
-- **Lernziele**: Wenn angegeben, fokussiere auf diese Ziele
-- **Kartenanzahl**: Erstelle exakt die angeforderte Anzahl
+**STORY-STRUKTUR:**
+- Jedes Kapitel = narrative Szene (200-300 Wörter)
+- Nutze Metaphern, konkrete Beispiele und visuelle Beschreibungen
+- Baue auf vorherigen Kapiteln auf
+- 2-3 Key Learnings pro Kapitel
 
-**VISUALISIERUNGS-STRATEGIE:**
-
-Erstelle für jede Lernkarte eine interaktive Graph-Visualisierung mit D3.js. Wähle das passende Layout basierend auf dem Inhalt:
-
-1. **Force-Directed Layout** - Für Konzept-Maps mit vielen Beziehungen:
-   - Beispiel: "Machine Learning Konzepte" → Zentrale Nodes (Supervised, Unsupervised) mit verzweigten Details
-   - Nutze Links mit Labels für "ist-ein", "verwendet", "führt-zu" Beziehungen
-   - Perfekt für: Abstrakte Konzepte, Definitionen, vernetzte Wissensstrukturen
-
-2. **Hierarchical Layout** - Für klar strukturierte Top-Down-Informationen:
-   - Beispiel: "HTTP Request Lifecycle" → Root (Client) → DNS → TCP → Request → Response
-   - Perfekt für: Prozess-Flows, Abhängigkeiten, Schritt-für-Schritt Anleitungen
-
-3. **Radial Layout** - Für zentrale Konzepte mit radialen Aspekten:
-   - Beispiel: "React Hooks" → Zentrum (React), radiale Äste (useState, useEffect, etc.)
-   - Perfekt für: Taxonomien, Feature-Übersichten, zentrale Themen mit Unterkategorien
-
-4. **Cluster Layout** - Für gruppierte Themen-Kategorien:
-   - Beispiel: "JavaScript Frameworks" → Cluster (React, Vue, Angular) mit Sub-Nodes
-   - Perfekt für: Vergleiche, kategorisierte Listen, Gruppenstrukturen
+**VISUALISIERUNGEN:**
+Wähle für jedes Kapitel eine passende Visualisierung:
+- **timeline**: LineChart für chronologische Entwicklungen
+- **comparison**: BarChart für Vergleiche zwischen Konzepten
+- **process**: Horizontaler BarChart für Prozess-Schritte
+- **concept-map**: PieChart für Konzept-Verteilungen
 
 **OUTPUT-FORMAT (JSON):**
 {
-  "cards": [
+  "chapters": [
     {
-      "question": "Was sind die Haupttypen von Machine Learning?",
-      "answer": "Ausführlicher erklärender Text (150-300 Wörter), der das Konzept detailliert erläutert. Nutze klare Struktur mit Absätzen. Keine Aufzählungen oder Bullet Points - fließender Text.",
-      "visualizations": [
-        {
-          "type": "d3",
-          "data": {
-            "layout": "force-directed",
-            "nodes": [
-              { "id": "1", "label": "Machine Learning", "type": "concept" },
-              { "id": "2", "label": "Supervised Learning", "type": "detail" },
-              { "id": "3", "label": "Unsupervised Learning", "type": "detail" },
-              { "id": "4", "label": "Classification", "type": "example" },
-              { "id": "5", "label": "Regression", "type": "example" }
-            ],
-            "links": [
-              { "source": "1", "target": "2", "label": "Typ" },
-              { "source": "1", "target": "3", "label": "Typ" },
-              { "source": "2", "target": "4", "label": "umfasst" },
-              { "source": "2", "target": "5", "label": "umfasst" }
-            ],
-            "config": {
-              "nodeRadius": 50,
-              "linkDistance": 120
-            }
-          }
-        }
-      ]
-    },
-    {
-      "question": "Wie läuft ein HTTP Request ab?",
-      "answer": "Ausführlicher erklärender Text (150-300 Wörter) für dieses Konzept. Fließender, strukturierter Text ohne Bullet Points.",
-      "visualizations": [
-        {
-          "type": "d3",
-          "data": {
-            "layout": "hierarchical",
-            "nodes": [
-              { "id": "1", "label": "Client", "type": "concept" },
-              { "id": "2", "label": "DNS Lookup", "type": "detail" },
-              { "id": "3", "label": "TCP Verbindung", "type": "detail" },
-              { "id": "4", "label": "HTTP Request", "type": "detail" },
-              { "id": "5", "label": "Server Verarbeitung", "type": "detail" },
-              { "id": "6", "label": "HTTP Response", "type": "example" }
-            ],
-            "links": [
-              { "source": "1", "target": "2" },
-              { "source": "2", "target": "3" },
-              { "source": "3", "target": "4" },
-              { "source": "4", "target": "5" },
-              { "source": "5", "target": "6" }
-            ]
-          }
-        }
-      ]
+      "chapterNumber": 1,
+      "chapterTitle": "Titel",
+      "narrative": "Story-Text (200-300 Wörter)",
+      "keyLearnings": ["Learning 1", "Learning 2"],
+      "visualizationType": "timeline",
+      "visualizationData": {
+        "title": "Chart-Titel",
+        "chartData": [
+          { "name": "Label1", "value": 100 },
+          { "name": "Label2", "value": 150 }
+        ]
+      }
     }
   ]
 }
 
 **WICHTIGE REGELN:**
-- Jede Karte MUSS ein "answer"-Feld mit 150-300 Wörtern erklärendem Text haben
-- Jede Karte MUSS genau eine D3-Visualisierung haben
-- **CARD 1 (Übersicht)**: MUSS IMMER Radial Layout verwenden mit 4-6 Sub-Nodes für Gesamtüberblick
-- **CARDS 2-X**: Wähle abwechslungsreiche Layouts basierend auf Inhalt (max 2x dasselbe Layout)
-- **Answer-Text**: Fließender, strukturierter Text ohne Bullet Points oder Aufzählungen
-- Nutze aussagekräftige Node-Labels (kurz, prägnant, max. 3-4 Wörter)
-- Links sollten Labels haben, die die Beziehung beschreiben (optional bei hierarchical)
-- Node-Types:
-  * "concept" (Hauptkonzept, Peach-Farbe)
-  * "detail" (Details, Weiß)
-  * "example" (Beispiele, Pink)
-  * "definition" (Definitionen, Lila)
-- Deutsche Sprache für alle Labels, Fragen und Antworten
-- Minimum 3 Nodes, Maximum 15 Nodes pro Visualisierung
-- Node-IDs MÜSSEN eindeutig sein und in Links korrekt referenziert werden
-- Bei hierarchical/radial/cluster: Links bilden Baum-Struktur (ein Root-Node)`;
+- Genau ${chapterCount} Kapitel
+- Narrative: 200-300 Wörter (fließender Text, keine Bullet Points)
+- Key Learnings: 2-3 pro Kapitel
+- ChartData MUSS gültige Recharts-Daten sein (Array mit {name, value} Objekten)
+- Deutsche Sprache`;
 
-      // Structure API Call mit Research-Daten
-      const structureCompletion = await openai.chat.completions.create({
+      const storyCompletion = await openai.chat.completions.create({
         model: structureModel,
         messages: [
-          { role: "system", content: structureSystemPrompt },
+          { role: "system", content: storySystemPrompt },
           {
             role: "user",
-            content: `Basierend auf den folgenden Recherche-Ergebnissen, erstelle ${cardCount} Lernkarten mit D3-Visualisierungen.
+            content: `Basierend auf diesen Research-Daten, erstelle eine ${chapterCount}-teilige Lerngeschichte:
 
-**RESEARCH-DATEN:**
+**RESEARCH:**
 ${JSON.stringify(researchData, null, 2)}
 
-**Nutzer-Profil:**
-- Erfahrungslevel: ${profileContext.experienceLevel}
-- Gewünschter Schwierigkeitsgrad: ${profileContext.preferredDifficulty}
-${profileContext.age ? `- Alter: ${profileContext.age} Jahre` : ""}
-${
-  profileContext.learningGoals
-    ? `- Lernziele: ${profileContext.learningGoals}`
-    : ""
-}
-- Anzahl Karten: ${cardCount}
-- Sprache: ${
-              profileContext.language === "de"
-                ? "Deutsch"
-                : profileContext.language
-            }
-
-**WICHTIG:**
-- Card 1 = IMMER Radial Layout für Themenüberblick
-- Cards 2-${cardCount} = Abwechslungsreiche Layouts (max 2x dasselbe)
-
-Erstelle bitte hochwertige Lernkarten basierend auf den Research-Daten.`,
+**USER-PROFIL:**
+- Level: ${profileContext.experienceLevel}
+- Schwierigkeit: ${profileContext.preferredDifficulty}
+${profileContext.age ? `- Alter: ${profileContext.age}` : ""}`,
           },
         ],
         response_format: { type: "json_object" },
       });
 
-      // JSON Response parsen
-      const flashcardsData = JSON.parse(
-        structureCompletion.choices[0].message.content || "{}"
+      const storyData = JSON.parse(
+        storyCompletion.choices[0].message.content || "{}"
       );
 
       console.log(
-        `✅ Structure completed: ${
-          flashcardsData.cards?.length || 0
-        } cards (${structureModel})`
+        `✅ Story completed: ${storyData.chapters?.length || 0} chapters (${structureModel})`
       );
 
-      // Validiere Layout-Verteilung
-      if (flashcardsData.cards && Array.isArray(flashcardsData.cards)) {
-        const layoutCounts: Record<string, number> = {};
+      // Speichere Story-Kapitel in DB
+      if (storyData.chapters && Array.isArray(storyData.chapters)) {
+        const storyInserts = storyData.chapters.map((chapter: any) => ({
+          lesson_id: lesson.id,
+          question: chapter.chapterTitle, // Legacy-Feld
+          phase: "story",
+          order_index: (chapter.chapterNumber || 1) - 1,
+          learning_content: {
+            story: {
+              chapterTitle: chapter.chapterTitle,
+              narrative: chapter.narrative,
+              keyPoints: chapter.keyLearnings || [],
+              visualizations: [
+                {
+                  type: chapter.visualizationType,
+                  title: chapter.visualizationData?.title || "",
+                  chartData: chapter.visualizationData?.chartData || [],
+                },
+              ],
+            },
+          },
+        }));
 
-        flashcardsData.cards.forEach((card: any, index: number) => {
-          const layout = card.visualizations?.[0]?.data?.layout;
-          if (layout) {
-            layoutCounts[layout] = (layoutCounts[layout] || 0) + 1;
-          }
+        const { error: storyError } = await supabase
+          .from("flashcard")
+          .insert(storyInserts);
 
-          // Warnung wenn Card 1 nicht radial ist
-          if (index === 0 && layout !== "radial") {
-            console.warn(
-              `⚠️ Card 1 sollte Radial Layout haben, hat aber: ${layout}`
-            );
-          }
-        });
-
-        // Warnung wenn ein Layout >2x vorkommt (außer radial bei nur 1 Card)
-        const hasExcessiveLayout = Object.entries(layoutCounts).some(
-          ([layout, count]) => {
-            if (layout === "radial" && flashcardsData.cards.length === 1)
-              return false;
-            return count > 2;
-          }
-        );
-
-        if (hasExcessiveLayout) {
-          console.warn(`⚠️ Layout-Verteilung nicht optimal:`, layoutCounts);
-        } else {
-          console.log(`✅ Layout-Verteilung OK:`, layoutCounts);
+        if (storyError) {
+          throw new Error(`Story Insert Error: ${storyError.message}`);
         }
       }
 
-      if (!flashcardsData.cards || !Array.isArray(flashcardsData.cards)) {
-        throw new Error("Ungültiges OpenAI Response Format");
-      }
+      // ============================================
+      // STAGE 3: QUIZ GENERATION
+      // ============================================
 
-      // Verarbeite jede Flashcard und speichere Visualisierungen + Answer-Text
-      // D3-Daten werden direkt gespeichert (keine Sanitization nötig)
-      const flashcardInserts = flashcardsData.cards.map((card: any) => ({
-        lesson_id: lesson.id,
-        question: card.question,
-        answer: card.answer || null,
-        visualizations: card.visualizations || [],
-      }));
+      const quizSystemPrompt = `Du bist ein Quiz-Ersteller für interaktive Lerninhalte.
 
-      const { error: flashcardError } = await supabase
-        .from("flashcard")
-        .insert(flashcardInserts);
+**AUFGABE:**
+Erstelle ${questionCount} Quiz-Fragen basierend auf Story und Research.
 
-      if (flashcardError) {
-        throw new Error(`Flashcard Insert Error: ${flashcardError.message}`);
+**QUIZ-STRUKTUR:**
+- Mix aus Schwierigkeitsgraden: 30% easy, 50% medium, 20% hard
+- 4 Antwortoptionen pro Frage (nur eine richtig)
+- Detaillierte Erklärung zur richtigen Antwort (50-100 Wörter)
+
+**OUTPUT-FORMAT (JSON):**
+{
+  "questions": [
+    {
+      "questionNumber": 1,
+      "question": "Frage-Text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswer": 0,
+      "difficulty": "medium",
+      "explanation": "Erklärung (50-100 Wörter)"
+    }
+  ]
+}
+
+**WICHTIGE REGELN:**
+- Genau ${questionCount} Fragen
+- correctAnswer = Index (0-3)
+- Difficulty-Verteilung: ${Math.ceil(questionCount * 0.3)} easy, ${Math.ceil(questionCount * 0.5)} medium, ${Math.floor(questionCount * 0.2)} hard
+- Deutsche Sprache
+- Erklärungen sind lehrreich und detailliert`;
+
+      const quizCompletion = await openai.chat.completions.create({
+        model: structureModel,
+        messages: [
+          { role: "system", content: quizSystemPrompt },
+          {
+            role: "user",
+            content: `Basierend auf Research und Story, erstelle ${questionCount} Quiz-Fragen:
+
+**RESEARCH:**
+${JSON.stringify(researchData, null, 2)}
+
+**STORY:**
+${JSON.stringify(storyData.chapters?.map((c: any) => ({ title: c.chapterTitle, keyLearnings: c.keyLearnings })) || [], null, 2)}`,
+          },
+        ],
+        response_format: { type: "json_object" },
+      });
+
+      const quizData = JSON.parse(
+        quizCompletion.choices[0].message.content || "{}"
+      );
+
+      console.log(
+        `✅ Quiz completed: ${quizData.questions?.length || 0} questions (${structureModel})`
+      );
+
+      // Speichere Quiz-Fragen in DB
+      if (quizData.questions && Array.isArray(quizData.questions)) {
+        const quizInserts = quizData.questions.map((q: any) => ({
+          lesson_id: lesson.id,
+          question: q.question, // Legacy-Feld
+          phase: "quiz",
+          order_index: (q.questionNumber || 1) - 1,
+          learning_content: {
+            quiz: {
+              question: q.question,
+              options: q.options || [],
+              correctAnswer: q.correctAnswer || 0,
+              difficulty: q.difficulty || "medium",
+              explanation: q.explanation || "",
+            },
+          },
+        }));
+
+        const { error: quizError } = await supabase
+          .from("flashcard")
+          .insert(quizInserts);
+
+        if (quizError) {
+          throw new Error(`Quiz Insert Error: ${quizError.message}`);
+        }
       }
 
       // Status auf 'completed' setzen
@@ -434,8 +375,10 @@ Erstelle bitte hochwertige Lernkarten basierend auf den Research-Daten.`,
           completed_at: new Date().toISOString(),
         })
         .eq("id", lesson.id);
-    } catch (openaiError) {
-      console.error("OpenAI generation error:", openaiError);
+
+      console.log(`✅ Interactive Learning Lesson created: ${lesson.id}`);
+    } catch (error) {
+      console.error("Content generation error:", error);
 
       // Status auf 'failed' setzen
       await supabase
@@ -448,9 +391,9 @@ Erstelle bitte hochwertige Lernkarten basierend auf den Research-Daten.`,
           error: "Fehler bei der KI-Generierung. Bitte versuche es erneut.",
           details:
             process.env.NODE_ENV === "development"
-              ? openaiError instanceof Error
-                ? openaiError.message
-                : String(openaiError)
+              ? error instanceof Error
+                ? error.message
+                : String(error)
               : undefined,
         },
         { status: 500 }
@@ -458,32 +401,17 @@ Erstelle bitte hochwertige Lernkarten basierend auf den Research-Daten.`,
     }
 
     // 6. CACHE INVALIDIERUNG
-    // Invalidiere Dashboard-Cache, damit neue Lesson sofort angezeigt wird
-    revalidateTag("lessons"); // Invalidiert alle gecachten Lessons
-    revalidatePath("/dashboard"); // Invalidiert Dashboard-Page
+    revalidateTag("lessons");
+    revalidatePath("/dashboard");
 
-    // 7. CACHE WARMING
-    // Befülle Cache direkt mit neuen Daten, damit der nächste Request schnell ist
-    try {
-      // Dashboard-Liste cachen
-      await getCachedLessons(userId);
-
-      // Lesson-Details cachen
-      await getCachedLesson(lesson.id, userId);
-
-      console.log(`✅ Cache warmed for user ${userId}, lesson ${lesson.id}`);
-    } catch (warmingError) {
-      // Cache Warming ist optional - bei Fehler einfach weitermachen
-      console.warn("⚠️ Cache warming failed (non-critical):", warmingError);
-    }
-
-    // 8. ERFOLGREICHE RESPONSE
+    // 7. ERFOLGREICHE RESPONSE
     return NextResponse.json(
       {
         success: true,
         lessonId: lesson.id,
         status: "completed",
-        message: "Deine Lernkarten wurden erfolgreich generiert!",
+        message:
+          "Deine interaktive Lerneinheit wurde erfolgreich erstellt! Starte jetzt mit dem Dialog.",
       },
       { status: 201 }
     );
@@ -495,3 +423,4 @@ Erstelle bitte hochwertige Lernkarten basierend auf den Research-Daten.`,
     );
   }
 }
+
