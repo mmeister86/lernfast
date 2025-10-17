@@ -15,11 +15,15 @@ import type { StoryChapter } from "@/lib/lesson.types";
 interface StoryPhaseProps {
   chapters: StoryChapter[];
   lessonId: string;
+  userId: string;
+  topic: string;
+  lessonType: "micro_dose" | "deep_dive";
 }
 
-export function StoryPhase({ chapters, lessonId }: StoryPhaseProps) {
+export function StoryPhase({ chapters, lessonId, userId, topic, lessonType }: StoryPhaseProps) {
   const router = useRouter();
   const [currentChapter, setCurrentChapter] = useState(0);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
 
   if (!chapters || chapters.length === 0) {
     return (
@@ -36,18 +40,18 @@ export function StoryPhase({ chapters, lessonId }: StoryPhaseProps) {
 
   const handleNext = async () => {
     if (isLastChapter) {
-      // Transition zu Quiz-Phase via API
+      // ✅ NEU: Generiere Quiz-Fragen basierend auf Story
+      setIsGeneratingQuiz(true);
       try {
-        await fetch("/api/lesson/update-phase", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lessonId, phase: "quiz" }),
-        });
-        // Cache wird bereits in der API-Route invalidiert
-        // Aktualisiere UI
-        router.refresh();
+        const { generateQuizFromStory } = await import("@/app/lesson/[id]/actions/actions-quiz-phase");
+        await generateQuizFromStory(lessonId, userId, topic, lessonType);
+
+        // Nach Quiz-Generierung: Reload Page um Quiz-Phase anzuzeigen
+        window.location.reload();
       } catch (error) {
-        console.error("Failed to transition to quiz:", error);
+        console.error("Failed to generate quiz:", error);
+        alert("Fehler beim Erstellen des Quiz. Bitte versuche es erneut.");
+        setIsGeneratingQuiz(false);
       }
     } else {
       setCurrentChapter((prev) => prev + 1);
@@ -151,36 +155,61 @@ export function StoryPhase({ chapters, lessonId }: StoryPhaseProps) {
         </motion.div>
       </AnimatePresence>
 
-      {/* Navigation */}
-      <div className="flex justify-between items-center gap-4 flex-wrap">
-        <Button
-          variant="outline"
-          onClick={handlePrevious}
-          disabled={currentChapter === 0}
-          className="min-w-[150px]"
+      {/* Quiz-Generierung Loading State */}
+      {isGeneratingQuiz && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-br from-[#662CB7] to-[#FB7DA8] border-4 border-black rounded-[15px] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8"
         >
-          ← Vorheriges Kapitel
-        </Button>
-
-        <div className="flex-1 text-center">
-          <p className="text-sm font-medium text-foreground/50">
-            💡 Nimm dir Zeit, die Geschichte zu verstehen
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin" />
+            <h2 className="text-3xl font-extrabold text-white">
+              🎯 Erstelle dein personalisiertes Quiz...
+            </h2>
+          </div>
+          <p className="text-lg font-medium text-white/90 text-center">
+            Basierend auf deinem Vorwissen und der Geschichte generiere ich jetzt{" "}
+            {lessonType === "micro_dose" ? "5" : "7"} maßgeschneiderte Quiz-Fragen.
           </p>
-        </div>
+          <p className="text-base font-medium text-white/70 text-center mt-2">
+            Das dauert ca. 10-15 Sekunden...
+          </p>
+        </motion.div>
+      )}
 
-        {isLastChapter ? (
+      {/* Navigation */}
+      {!isGeneratingQuiz && (
+        <div className="flex justify-between items-center gap-4 flex-wrap">
           <Button
-            onClick={handleNext}
-            className="min-w-[150px] bg-[#662CB7] hover:bg-[#662CB7]/90"
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={currentChapter === 0}
+            className="min-w-[150px]"
           >
-            Zum Quiz! 🎯
+            ← Vorheriges Kapitel
           </Button>
-        ) : (
-          <Button onClick={handleNext} className="min-w-[150px]">
-            Nächstes Kapitel →
-          </Button>
-        )}
-      </div>
+
+          <div className="flex-1 text-center">
+            <p className="text-sm font-medium text-foreground/50">
+              💡 Nimm dir Zeit, die Geschichte zu verstehen
+            </p>
+          </div>
+
+          {isLastChapter ? (
+            <Button
+              onClick={handleNext}
+              className="min-w-[150px] bg-[#662CB7] hover:bg-[#662CB7]/90"
+            >
+              Bereit für das Quiz? 🎯
+            </Button>
+          ) : (
+            <Button onClick={handleNext} className="min-w-[150px]">
+              Nächstes Kapitel →
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Chapter Overview */}
       <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-4 border-black rounded-[15px] p-4">

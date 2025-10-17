@@ -6,20 +6,186 @@
  */
 
 import React, { type ReactNode } from "react";
+import { generateObject } from "ai";
 import { streamUI } from "@ai-sdk/rsc";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
-import { QuestionLoading, AdaptingDifficulty } from "./helper-components";
-import { updatePhase } from "./database-helpers";
+import {
+  updatePhase,
+  getResearchData,
+  getDialogMetadata,
+  invalidateLessonCache,
+} from "./database-helpers";
+
+// Loading Components für streamUI
+function QuestionLoading() {
+  return (
+    <div className="animate-pulse p-6 bg-gray-100 border-4 border-black rounded-[15px]">
+      <div className="h-6 bg-gray-300 rounded w-1/2 mb-4"></div>
+      <div className="h-4 bg-gray-300 rounded w-full mb-2"></div>
+      <div className="h-4 bg-gray-300 rounded w-full"></div>
+    </div>
+  );
+}
+
+function AdaptingDifficulty() {
+  return (
+    <div className="animate-pulse p-6 bg-purple-100 border-4 border-black rounded-[15px]">
+      <div className="h-6 bg-purple-300 rounded w-2/3"></div>
+    </div>
+  );
+}
 
 // ============================================
 // QUIZ-PHASE: Adaptive Wissensabfrage
 // ============================================
 
-export async function generateQuiz(
+/**
+ * Generiert Quiz-Fragen basierend auf Story-Kapiteln und Research-Daten
+ * Wird vom "Weiter zum Quiz"-Button in der Story-Phase aufgerufen
+ */
+export async function generateQuizFromStory(
   lessonId: string,
   userId: string,
+  topic: string,
+  lessonType: "micro_dose" | "deep_dive"
+): Promise<void> {
+  const quizModel = process.env.OPENAI_STRUCTURE_MODEL || "gpt-4.1-mini";
+  const questionCount = lessonType === "micro_dose" ? 5 : 7;
+
+  console.log(`🎯 Starting Quiz Generation for lesson: ${lessonId}`);
+
+  // 1. Lade Research-Daten
+  const researchData = await getResearchData(lessonId);
+  const dialogMetadata = await getDialogMetadata(lessonId, userId);
+
+  // 2. Lade Story-Kapitel aus DB
+  const supabase = createServiceClient();
+  const { data: storyChapters } = await supabase
+    .from("flashcard")
+    .select("*")
+    .eq("lesson_id", lessonId)
+    .eq("phase", "story")
+    .order("order_index");
+
+  if (!storyChapters || storyChapters.length === 0) {
+    throw new Error("Keine Story-Kapitel gefunden - Quiz kann nicht erstellt werden");
+  }
+
+  // 3. Erstelle Story-Context für Quiz-Generierung
+  const storyContext = storyChapters
+    .map(
+      (chapter, i) =>
+        `Kapitel ${i + 1}: ${chapter.question}\n${chapter.learning_content?.story?.narrative || ""}`
+    )
+    .join("\n\n");
+
+  const researchContext = researchData
+    ? `
+FORSCHUNGS-DATEN:
+- Facts: ${researchData.facts?.join(", ") || "Keine verfügbar"}
+- Konzepte: ${researchData.concepts?.map((c) => c.name).join(", ") || "Keine verfügbar"}
+- Beispiele: ${researchData.examples?.join(", ") || "Keine verfügbar"}
+`
+    : "";
+
+  const dialogContext = dialogMetadata
+    ? `
+USER-PROFIL:
+- Knowledge Level: ${dialogMetadata.knowledgeLevel}
+- Schwachstellen: ${dialogMetadata.storyPreferences?.weakPoints?.join(", ") || "Nicht bekannt"}
+`
+    : "";
+
+  // 4. Quiz-Schema definieren
+  const questionSchema = z.object({
+    question: z.string().min(10).describe("Die Quiz-Frage (klar und präzise)"),
+    options: z
+      .array(z.string())
+      .length(4)
+      .describe("4 Antwortoptionen (nur eine richtig)"),
+    correctAnswer: z
+      .number()
+      .min(0)
+      .max(3)
+      .describe("Index der richtigen Antwort (0-3)"),
+    difficulty: z.enum(["easy", "medium", "hard"]),
+    explanation: z
+      .string()
+      .min(20)
+      .max(200)
+      .describe("Erklärung zur richtigen Antwort (1-2 Sätze)"),
+  });
+
+  const quizSchema = z.object({
+    questions: z.array(questionSchema).length(questionCount),
+  });
+
+  // 5. Generiere Quiz mit OpenAI
+  const { object: quiz } = await generateObject({
+    model: openai(quizModel),
+    schema: quizSchema,
+    system: `Du bist ein Quiz-Ersteller für das Thema "${topic}".
+
+AUFGABE:
+Erstelle EXAKT ${questionCount} Quiz-Fragen basierend auf der Story und den Research-Daten.
+
+${researchContext}
+${dialogContext}
+
+QUIZ-REGELN:
+- Mix aus Schwierigkeitsgraden: 30% easy, 50% medium, 20% hard
+- Fragen sollten das Verständnis prüfen, nicht nur Faktenwissen
+- Alle 4 Optionen müssen plausibel sein (keine offensichtlich falschen Antworten)
+- Erklärungen sollten das "Warum" verdeutlichen
+- Passe Schwierigkeit an User-Level an: ${dialogMetadata?.knowledgeLevel || "intermediate"}
+- Fokussiere auf Schwachstellen: ${dialogMetadata?.storyPreferences?.weakPoints?.join(", ") || "Allgemein"}
+
+STORY-KONTEXT (nutze diese Inhalte für Fragen):
+${storyContext}`,
+    prompt: `Erstelle ein Quiz mit ${questionCount} Fragen zu "${topic}". Gib das Ergebnis als JSON-Objekt zurück.`,
+  });
+
+  console.log(`✅ Quiz object generated with ${quiz.questions.length} questions.`);
+
+  // 6. Speichere Quiz-Fragen in DB
+  const questionsToInsert = quiz.questions.map((q, index) => ({
+    lesson_id: lessonId,
+    question: q.question,
+    phase: "quiz",
+    order_index: index,
+    learning_content: {
+      quiz: {
+        question: q.question,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        difficulty: q.difficulty,
+        explanation: q.explanation,
+      },
+    },
+  }));
+
+  const { error: insertError } = await supabase
+    .from("flashcard")
+    .insert(questionsToInsert);
+
+  if (insertError) {
+    console.error("❌ Failed to save quiz questions:", insertError);
+    throw new Error("Fehler beim Speichern der Quiz-Fragen.");
+  }
+
+  console.log(`✅ All ${quiz.questions.length} questions saved to database`);
+
+  // 7. Invalidiere Cache und update Phase zu 'quiz'
+  await invalidateLessonCache(lessonId);
+  await updatePhase(lessonId, "quiz");
+
+  console.log("✅ Quiz generation complete - phase updated to 'quiz'");
+}
+
+export async function generateQuiz(
+  lessonId: string,
   storyContent: string,
   knowledgeLevel: string
 ): Promise<ReactNode> {
@@ -44,7 +210,7 @@ ADAPTIVE SCHWIERIGKEIT:
 - Bei 3 falschen Antworten in Folge → nutze "adaptDifficulty" Tool`,
     prompt: `Erstelle ein Quiz basierend auf diesem Lerninhalt:\n\n${storyContent}\n\nNutze das createQuestion-Tool für jede Frage.`,
 
-    text: async function* ({ content }) {
+    text: async function* ({ content }: { content: string }) {
       return (
         <div className="p-4 bg-white border-4 border-black rounded-[15px]">
           <p className="text-lg font-medium">{content}</p>
@@ -77,6 +243,13 @@ ADAPTIVE SCHWIERIGKEIT:
           correctAnswer,
           difficulty,
           explanation,
+        }: {
+          questionNumber: number;
+          question: string;
+          options: string[];
+          correctAnswer: number;
+          difficulty: "easy" | "medium" | "hard";
+          explanation: string;
         }) {
           yield <QuestionLoading />;
 
@@ -118,7 +291,7 @@ ADAPTIVE SCHWIERIGKEIT:
               </div>
               <p className="text-lg font-medium mb-4">{question}</p>
               <div className="space-y-2">
-                {options.map((option, i) => (
+                {options.map((option: string, i: number) => (
                   <div
                     key={i}
                     className={`p-3 border-2 border-black rounded-[10px] ${
@@ -161,6 +334,11 @@ ADAPTIVE SCHWIERIGKEIT:
           currentScore,
           newDifficulty,
           encouragement,
+        }: {
+          currentScore: number;
+          correctStreak: number;
+          newDifficulty: "easy" | "medium" | "hard";
+          encouragement: string;
         }) {
           yield <AdaptingDifficulty />;
 

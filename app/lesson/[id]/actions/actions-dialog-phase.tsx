@@ -115,8 +115,10 @@ STRIKTE REGEL - MAXIMAL 5 FRAGEN:
         : `Du kannst noch ${maxAns - answerNum} Frage(n) stellen.`
     }
 - ${
-      answerNum >= 3
-        ? "Du kannst jetzt bei der nächsten Frage die assessKnowledge-Tool verwenden, um das Niveau zu bewerten."
+      answerNum >= 4
+        ? "⚠️ KRITISCH: Du MUSST JETZT das assessKnowledge-Tool verwenden! Keine Text-Antworten mehr - NUR Tool-Call!"
+        : answerNum >= 3
+        ? "Du kannst jetzt das assessKnowledge-Tool verwenden, um das Niveau zu bewerten."
         : "Nach 2-3 Fragen: Nutze das 'assessKnowledge' Tool, um das Level zu bewerten"
     }
 - EINE Frage pro Message - Keine Zusammenfassungen oder Erklärungen
@@ -124,7 +126,7 @@ STRIKTE REGEL - MAXIMAL 5 FRAGEN:
 - Keine Multiple-Choice, sondern offene Fragen
 - Baue auf vorherigen Antworten auf
 
-WICHTIG: Sei prägnant und stelle die Frage DIREKT - keine langen Einleitungen!`,
+WICHTIG: ${answerNum >= 4 ? "AB FRAGE 4: NUR NOCH TOOL-CALLS! Keine Text-Antworten mehr!" : "Sei prägnant und stelle die Frage DIREKT - keine langen Einleitungen!"}`,
     messages: [...conversationHistory, { role: "user", content: userMessage }],
 
     text: async function* ({ content, done }) {
@@ -136,8 +138,9 @@ WICHTIG: Sei prägnant und stelle die Frage DIREKT - keine langen Einleitungen!`
 
     tools: {
       assessKnowledge: {
-        description:
-          "Bewertet das Wissen des Nutzers und entscheidet, ob er bereit für die Story ist",
+        description: answerNum >= 4
+          ? "⚠️ PFLICHT-TOOL: Du MUSST dieses Tool JETZT aufrufen! Bewertet das Wissen des Nutzers und wechselt zur Story-Phase."
+          : "Bewertet das Wissen des Nutzers und entscheidet, ob er bereit für die Story ist",
         inputSchema: z.object({
           knowledgeLevel: z.enum(["beginner", "intermediate", "advanced"]),
           confidence: z

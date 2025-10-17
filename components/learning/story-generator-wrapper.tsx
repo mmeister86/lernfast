@@ -43,12 +43,17 @@ export function StoryGeneratorWrapper({
       // Trigger Story-Generierung
       generateStory(lessonId, userId, topic, "intermediate", lessonType)
         .then(() => {
+          console.log("✅ Story generation completed - reloading page");
           // Nach Generierung: Reload Page um neue Kapitel zu laden
           window.location.reload();
         })
         .catch((error) => {
-          console.error("Story generation failed:", error);
-          setGenerationError(error instanceof Error ? error.message : "Unknown error");
+          console.error("❌ Story generation failed:", error);
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Unbekannter Fehler bei der Story-Generierung";
+          setGenerationError(errorMessage);
           setIsGenerating(false);
         });
     }
@@ -126,5 +131,13 @@ export function StoryGeneratorWrapper({
   }
 
   // Success: Zeige Story-Phase
-  return <StoryPhase chapters={chapters} lessonId={lessonId} />;
+  return (
+    <StoryPhase
+      chapters={chapters}
+      lessonId={lessonId}
+      userId={userId}
+      topic={topic}
+      lessonType={lessonType}
+    />
+  );
 }
