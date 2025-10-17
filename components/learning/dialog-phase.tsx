@@ -5,8 +5,9 @@
  * Interaktiver Wissens-Dialog mit KI-gesteuertem Assessment
  */
 
-import { useState, FormEvent, ReactNode } from "react";
+import { useState, useEffect, FormEvent, ReactNode } from "react";
 import {
+  startDialog,
   continueDialog,
   invalidateLessonCache,
 } from "@/app/lesson/[id]/actions";
@@ -32,6 +33,36 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
     Array<{ role: "user" | "assistant"; content: string }>
   >([]);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+
+  // Initial-Frage vom LLM beim Component-Mount
+  useEffect(() => {
+    if (!hasStarted) {
+      setHasStarted(true);
+      setIsLoading(true);
+
+      startDialog(lessonId, topic)
+        .then((initialQuestion) => {
+          setMessages([initialQuestion]);
+          // Extrahiere Text-Content für History (vereinfacht)
+          setConversationHistory([
+            { role: "assistant", content: "Initial question asked" },
+          ]);
+        })
+        .catch((error) => {
+          console.error("Failed to start dialog:", error);
+          setMessages([
+            <ErrorMessage
+              key="error-start"
+              message="Entschuldigung, ich konnte keine Frage generieren. Bitte lade die Seite neu."
+            />,
+          ]);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [hasStarted, lessonId, topic]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -62,6 +93,7 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
       // Bei 5. Antwort: forceAssessment aufrufen
       if (newAnswerCount === MAX_DIALOG_ANSWERS) {
         setIsCompleting(true);
+        setIsLoading(false); // ✅ Unterdrücke Typing-Bubble während Assessment
         setMessages((prev) => [
           ...prev,
           <div
@@ -178,7 +210,7 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <p className="text-lg font-medium text-gray-400">
-              Stelle mir eine Frage zu {topic}...
+              Warte auf erste Frage...
             </p>
           </div>
         )}
@@ -194,7 +226,7 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
           </motion.div>
         ))}
 
-        {isLoading && <TypingIndicator />}
+        {isLoading && !isCompleting && <TypingIndicator />}
       </div>
 
       {/* Input Form - disabled nach 5 Antworten */}
@@ -248,7 +280,7 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
 function UserMessage({ content }: { content: string }) {
   return (
     <div className="mb-4 flex justify-end">
-      <div className="max-w-[80%] p-4 bg-[#FFC667] border-4 border-black rounded-[15px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+      <div className="max-w-[80%] p-4 bg-[#00D9BE] border-4 border-black rounded-[15px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
         <p className="text-lg font-medium text-black">{content}</p>
       </div>
     </div>

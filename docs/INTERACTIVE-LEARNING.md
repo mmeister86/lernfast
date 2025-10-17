@@ -517,8 +517,99 @@ Bei Fragen oder Problemen:
 2. Check diese Datei für Interactive Learning Details
 3. Check Component-READMEs in `components/learning/`
 
-**Status**: ✅ Vollständig implementiert (2025-10-16)
-**Version**: 1.0.0 - Interactive Learning MVP
+**Status**: ✅ Vollständig implementiert (2025-10-17)
+**Version**: 1.2.1 - Interactive Learning MVP + Robuste Visualisierungen
+
+---
+
+## 🔧 Robuste Visualisierungs-Validierung (V1.2.1 - 2025-10-17)
+
+### Problem gelöst
+
+Process-Visualisierungen renderten ein graues Overlay statt echte Charts, weil:
+1. LLM generierte teilweise leere/invalide `chartData` Arrays
+2. Keine Validierung der LLM-Outputs vor dem Speichern
+3. ProcessChart Component hatte kein Error-Handling
+
+### Lösung: 3-stufige Validierung + Fallback-Daten
+
+#### 1. Verbesserter LLM-Prompt (OpenAI Best Practices)
+
+**Strukturierter Prompt nach Cookbook-Guidelines:**
+- Klare Beispiele für jeden Visualisierungstyp (timeline, comparison, process, concept-map)
+- Explizite Regeln: MINDESTENS 3-6 Datenpunkte, NIEMALS leere Arrays
+- Konkrete Format-Vorgaben: `{ name: "String", value: Number }`
+
+#### 2. 3-stufige Server-Side Validierung
+
+**Implementierung in `app/lesson/[id]/actions.tsx`:**
+
+```typescript
+// Validierung 1: Ist chartData ein Array?
+if (!Array.isArray(finalChartData)) { finalChartData = []; }
+
+// Validierung 2: Hat chartData mindestens 3 Einträge?
+if (finalChartData.length < 3) {
+  // Automatischer Fallback mit sinnvollen Test-Daten
+}
+
+// Validierung 3: Struktur-Check für jeden Datenpunkt
+validatedChartData.map((item) => {
+  if (!item.name || typeof item.name !== "string") { ... }
+  if (typeof item.value !== "number") { ... }
+})
+```
+
+**Fallback-Daten für jeden Typ:**
+- `timeline`: 4 Phasen (25, 55, 80, 100)
+- `comparison`: 4 Optionen (75, 60, 85, 70)
+- `process`: 4 Schritte (100, 80, 60, 30)
+- `concept-map`: 4 Teile (40, 30, 20, 10)
+
+#### 3. ProcessChart Component Verbesserungen
+
+**Features in `components/learning/modern-visualization.tsx`:**
+- Early-Return bei leeren Daten
+- `domain={[0, 100]}` für X-Achse (fixiert Werte-Range)
+- `width={180}` für Y-Achse (mehr Platz für lange Schritt-Namen)
+- Debug-Logging für Daten-Inspektion
+
+#### 4. Debugging-Support
+
+**Console-Logging auf mehreren Ebenen:**
+1. `📊 createChapter Tool Called:` → Zeigt LLM-Output
+2. `⚠️ LLM returned invalid chartData` → Fallback wird aktiviert
+3. `✅ Final validated chartData:` → Zeigt finale Daten
+4. `✅ Chapter saved successfully` → Speicherung erfolgreich
+5. `🎨 ModernVisualization rendering successfully` → Chart wird gerendert
+
+#### Impact
+
+**Vorher:**
+- ❌ Graues Overlay bei invaliden Daten
+- ❌ Keine Fehlerdiagnose möglich
+
+**Nachher:**
+- ✅ LLM wird strukturiert zu validen Daten angeleitet
+- ✅ Automatischer Fallback bei LLM-Fehler
+- ✅ Jeder Datenpunkt strukturell validiert
+- ✅ ProcessChart rendert korrekt mit horizontalen Balken
+- ✅ Umfassendes Logging für schnelles Debugging
+
+#### Geänderte Dateien
+
+- `app/lesson/[id]/actions.tsx` (System-Prompt + Validierung)
+- `components/learning/modern-visualization.tsx` (Error-Handling + ProcessChart Fix)
+- `INTERACTIVE-LEARNING.md` (Diese Dokumentation)
+
+#### Verifikation
+
+✅ LLM-Prompt nach OpenAI Best Practices strukturiert
+✅ 3-stufige Validierung implementiert
+✅ Fallback-Daten für alle 4 Visualisierungstypen
+✅ ProcessChart Component robustifiziert
+✅ Umfassendes Debug-Logging
+✅ Dokumentation aktualisiert
 
 ---
 

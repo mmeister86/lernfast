@@ -1225,6 +1225,31 @@ EXECUTE FUNCTION update_lesson_total_score();
 
 **Dokumentation:** [INTERACTIVE-LEARNING.md](./INTERACTIVE-LEARNING.md) - Version 1.2
 
+### V1.2.1 - Robuste Visualisierungs-Validierung (2025-10-17)
+
+**Problem:** Process-Visualisierungen zeigten graues Overlay statt Charts
+
+**Ursachen:**
+1. LLM generierte leere/invalide `chartData` Arrays
+2. Keine Validierung vor dem Speichern
+3. ProcessChart Component hatte kein Error-Handling
+
+**Lösung:**
+- **Verbesserter LLM-Prompt** nach OpenAI Best Practices (strukturierte Beispiele für alle 4 Chart-Typen)
+- **3-stufige Validierung** in Server Actions:
+  1. Array-Check: `Array.isArray(chartData)`
+  2. Längen-Check: `length >= 3` (sonst Fallback-Daten)
+  3. Struktur-Check: Jeder Datenpunkt validiert (`name: string, value: number`)
+- **Fallback-Daten** für jeden Visualisierungstyp (timeline, comparison, process, concept-map)
+- **ProcessChart Improvements**: Domain-Fixierung, besseres Layout, Error-States
+- **Debug-Logging** auf 5 Ebenen (Tool Call → Validierung → Speicherung → Rendering)
+
+**Geänderte Dateien:**
+- [app/lesson/[id]/actions.tsx](app/lesson/[id]/actions.tsx) (Zeilen 439-659)
+- [components/learning/modern-visualization.tsx](components/learning/modern-visualization.tsx) (Zeilen 45-233)
+
+**Dokumentation:** [INTERACTIVE-LEARNING.md](./INTERACTIVE-LEARNING.md#-robuste-visualisierungs-validierung-v121---2025-10-17)
+
 ---
 
 ## Umgebungsvariablen (.env.local)
@@ -1624,12 +1649,14 @@ export const getCachedFlashcardsByTopic = unstable_cache(
 
 ---
 
-**Letzte Aktualisierung:** 2025-10-16 (Interactive Learning V1.2 + CLAUDE.md Vollständige Aktualisierung)
+**Letzte Aktualisierung:** 2025-10-17 (Interactive Learning V1.2.1 + Robuste Visualisierungs-Validierung)
 **Projekt-Status:** Phase 1.5 + Interactive Learning abgeschlossen ✅ | Phase 2 (Monetarisierung) als nächstes
 
-**Neueste Features (Stand 2025-10-16):**
+**Neueste Features (Stand 2025-10-17):**
 
-- ✅ **Interactive Learning System V1.2:** 3-Phasen-Workflow (Dialog → Story → Quiz) mit vereinfachter Score-Berechnung
+- ✅ **Interactive Learning System V1.2.1:** 3-Phasen-Workflow (Dialog → Story → Quiz) mit robuster Visualisierungs-Validierung
+- ✅ **Robuste Chart-Validierung (V1.2.1):** 3-stufige Validierung + Fallback-Daten für alle 4 Visualisierungstypen
+- ✅ **Verbesserter LLM-Prompt:** Strukturiert nach OpenAI Best Practices mit expliziten Beispielen
 - ✅ **Dialog-Phase Limit (V1.1):** Max. 5 User-Antworten mit automatischem Assessment
 - ✅ **Vereinfachte Scores (V1.2):** `total_score = quiz_score` (nur Quiz zählt)
 - ✅ **Vercel AI SDK v5:** Server Actions mit `streamUI` für live Dialog-Generierung
@@ -1641,6 +1668,7 @@ export const getCachedFlashcardsByTopic = unstable_cache(
 - ✅ **Next.js 15 Caching:** Server-side Caching mit `unstable_cache` (86% schneller)
 - ✅ **D3.js Integration (Legacy):** Interaktive Graph-Visualisierungen für alte Flashcards
 - ✅ **404-Seite:** Humorvolle 404 mit Hamster-Maskottchen + interaktivem Quiz
+- ✅ **Debug-Logging:** Umfassendes 5-Ebenen-Logging für Visualisierungen
 
 **Dokumentations-Struktur:**
 - **CLAUDE.md** (dieses Dokument) - Gesamt-Überblick über die gesamte Codebase

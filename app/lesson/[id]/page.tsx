@@ -6,7 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { Navbar } from "@/components/navbar";
 import { FlashcardViewer } from "@/components/flashcard/flashcard-viewer";
 import { DialogPhase } from "@/components/learning/dialog-phase";
-import { StoryPhase } from "@/components/learning/story-phase";
+import { StoryGeneratorWrapper } from "@/components/learning/story-generator-wrapper";
 import { QuizPhase } from "@/components/learning/quiz-phase";
 import { LearningProgress } from "@/components/learning/learning-progress";
 import { CompletionScreen } from "@/components/learning/completion-screen";
@@ -159,9 +159,15 @@ export default async function LessonPage({ params }: PageProps) {
             />
           )}
 
-          {/* Story Phase */}
+          {/* Story Phase - LIVE Generation wenn keine Kapitel vorhanden */}
           {currentPhase === "story" && (
-            <StoryPhase chapters={storyChapters} lessonId={id} />
+            <StoryGeneratorWrapper
+              lessonId={id}
+              userId={session.user.id}
+              topic={lessonWithFlashcards.topic}
+              lessonType={lessonWithFlashcards.lesson_type}
+              initialChapters={storyChapters}
+            />
           )}
 
           {/* Quiz Phase */}

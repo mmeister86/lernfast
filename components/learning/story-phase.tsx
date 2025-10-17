@@ -9,7 +9,6 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ModernVisualization } from "./modern-visualization";
 import { Button } from "@/components/ui/button";
-import { invalidateLessonCache } from "@/app/lesson/[id]/actions";
 import { useRouter } from "next/navigation";
 import type { StoryChapter } from "@/lib/lesson.types";
 
@@ -112,8 +111,8 @@ export function StoryPhase({ chapters, lessonId }: StoryPhaseProps) {
             </p>
           </div>
 
-          {/* Visualization */}
-          {currentChapterData.visualizationData?.chartData?.length > 0 ? (
+          {/* Visualization mit verbessertem Error-Handling */}
+          {currentChapterData.visualizationData ? (
             <ModernVisualization
               type={currentChapterData.visualizationType}
               data={currentChapterData.visualizationData}

@@ -19,6 +19,27 @@ export interface TopicSuggestion {
 }
 
 /**
+ * Research Data - Gespeichert in lesson.research_data
+ * Wird von Stage 1 generiert und für Dialog/Story/Quiz verwendet
+ */
+export interface ResearchData {
+  topic: string;
+  facts: string[]; // Array von Fakten zum Thema
+  concepts: ResearchConcept[]; // Strukturierte Konzepte mit Beziehungen
+  examples: string[]; // Konkrete Beispiele
+  keyTakeaways: string[]; // Hauptpunkte zum Mitnehmen
+}
+
+/**
+ * Research Concept - Teil von ResearchData
+ */
+export interface ResearchConcept {
+  name: string;
+  description: string;
+  relationships: string[]; // Beziehungen zu anderen Konzepten
+}
+
+/**
  * Lesson Entity (Lerneinheit)
  * Eine Lesson enthält mehrere Flashcards
  */
@@ -30,6 +51,7 @@ export interface Lesson {
   lesson_type: LessonType;
   status: LessonStatus;
   current_phase?: LearningPhase; // NEU: Aktuelle Phase im interaktiven Workflow
+  research_data?: ResearchData; // NEU: Research-Daten aus Stage 1
   created_at: string; // ISO 8601 timestamp string von Supabase
   completed_at: string | null;
 }

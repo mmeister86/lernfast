@@ -9,6 +9,32 @@
 export type LearningPhase = "dialog" | "story" | "quiz" | "completed";
 
 /**
+ * Conversation History Entry
+ * Gespeichert in lesson_score.metadata.conversationHistory
+ */
+export interface ConversationEntry {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/**
+ * Lesson Score Metadata
+ * Gespeichert in lesson_score.metadata (JSONB)
+ * Wird für Story/Quiz-Personalisierung verwendet
+ */
+export interface LessonScoreMetadata {
+  conversationHistory?: ConversationEntry[]; // Dialog-Conversation für Story-Personalisierung
+  knowledgeLevel?: "beginner" | "intermediate" | "advanced"; // Aus Dialog-Assessment
+  assessmentReasoning?: string; // Begründung des KI-Assessments
+  storyPreferences?: {
+    preferredMetaphors?: string[]; // z.B. ["code examples", "visual diagrams"]
+    weakPoints?: string[]; // Erkannte Wissenslücken aus Dialog
+    strongPoints?: string[]; // Erkannte Stärken aus Dialog
+  };
+  userResponses?: string[]; // Array der User-Antworten im Dialog (vereinfacht)
+}
+
+/**
  * Lesson Score Entity
  * Speichert Fortschritt und Performance in allen 3 Phasen
  */
@@ -30,6 +56,9 @@ export interface LessonScore {
   correct_answers: number;
   total_questions: number;
   time_spent_seconds: number;
+
+  // NEU: Metadata für Context-Sharing zwischen Phasen
+  metadata?: LessonScoreMetadata;
 
   created_at: string;
   updated_at: string;
