@@ -8,8 +8,7 @@ export type LoadingPhase =
   | "suggesting"
   | "analyzing"
   | "researching"
-  | "structuring"
-  | "finalizing";
+  | "preparing";
 
 interface LoadingModalProps {
   isOpen: boolean;
@@ -41,19 +40,12 @@ const phaseMessages: Record<LoadingPhase, string[]> = {
     "Spannende Details werden entdeckt!",
     "🔬 Qualitätsrecherche läuft!",
   ],
-  structuring: [
-    "Hamster erstellt Visualisierungen...",
-    "🎨 Graphen werden gezeichnet!",
-    "Strukturen nehmen Form an...",
-    "Verbindungen werden visualisiert...",
-    "✨ Bald wird alles klar und übersichtlich!",
-  ],
-  finalizing: [
-    "Fast geschafft!",
-    "🏁 Der Endspurt läuft!",
-    "Letzte Gehirnwindungen werden aktiviert...",
-    "Das Gehirn macht den Feinschliff...",
-    "✨ Gleich kann's losgehen!",
+  preparing: [
+    "Bereite deinen Dialog vor...",
+    "💬 Gleich geht's los mit dem Chat!",
+    "Fragen werden vorbereitet...",
+    "✨ Der Dialog startet in wenigen Sekunden!",
+    "🎯 Alles bereit für deine Lernreise!",
   ],
 };
 
@@ -157,13 +149,7 @@ export function LoadingModal({ isOpen, phase }: LoadingModalProps) {
               <div
                 className={cn(
                   "w-3 h-3 rounded-full border-2 border-black transition-all duration-300",
-                  phase === "structuring" ? "bg-[#0CBCD7]" : "bg-white"
-                )}
-              />
-              <div
-                className={cn(
-                  "w-3 h-3 rounded-full border-2 border-black transition-all duration-300",
-                  phase === "finalizing" ? "bg-[#00D9BE]" : "bg-white"
+                  phase === "preparing" ? "bg-[#00D9BE]" : "bg-white"
                 )}
               />
             </div>
@@ -185,9 +171,7 @@ function getPhaseTitleEmoji(phase: LoadingPhase): string {
       return "🔍 Analysiere...";
     case "researching":
       return "📚 Recherchiere...";
-    case "structuring":
-      return "🎨 Strukturiere...";
-    case "finalizing":
-      return "🎉 Fast fertig!";
+    case "preparing":
+      return "💬 Bereite Dialog vor...";
   }
 }

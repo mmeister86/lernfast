@@ -97,9 +97,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. KI-GENERIERUNG: NUR Research-Phase (Story + Quiz werden LIVE generiert)
+    // 5. KI-GENERIERUNG: NUR Research-Phase (Story + Quiz werden SPÄTER LIVE generiert)
     // Dialog wird live generiert in der Lesson Page via streamUI
-    // Story wird nach Dialog generiert (mit Dialog-Context)
+    // Story wird nach Dialog generiert (während User bereits im Dialog ist!)
     // Quiz wird nach Story generiert (mit Story + Dialog-Context)
     try {
       await supabase
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
         `🔬 Starting Research Phase for topic: "${targetTopic}" (${lessonType})`
       );
       console.log(
-        `📚 Lesson will have ${chapterCount} chapters and ${questionCount} quiz questions (generated LIVE after dialog)`
+        `📚 Lesson will have ${chapterCount} chapters and ${questionCount} quiz questions (generated LIVE during Dialog & after Story)`
       );
 
       const researchSystemPrompt = `Du bist ein Recherche-Experte für interaktive Lerngeschichten.
@@ -188,7 +188,9 @@ ${profileContext.learningGoals ? `- Lernziele: ${profileContext.learningGoals}` 
       // ============================================
       // SPEICHERE RESEARCH-DATEN IN DB
       // ============================================
-      // Story + Quiz werden SPÄTER generiert (nach Dialog-Phase)
+      // ✅ NEU: Story wird NICHT mehr hier generiert!
+      // Story-Generierung erfolgt LAZY wenn User zur Story-Phase wechselt
+      // (in StoryGeneratorWrapper → actions-story-phase.tsx)
 
       await supabase
         .from("lesson")
@@ -200,17 +202,24 @@ ${profileContext.learningGoals ? `- Lernziele: ${profileContext.learningGoals}` 
         .eq("id", lesson.id);
 
       console.log(
-        `✅ Lesson created successfully: ${lesson.id} (Research-Only Mode)`
+        `✅ Lesson created successfully: ${lesson.id} (Research-Only Mode - Story wird später generiert)`
       );
 
       // ============================================
-      // ENTFERNT: STAGE 2 & 3 (Story + Quiz)
+      // OPTIMIERUNG: LAZY STORY GENERATION
       // ============================================
-      // Diese Stages werden LIVE generiert:
-      // - Story: Nach Dialog-Phase in actions-story-phase.tsx
-      // - Quiz: Nach Story-Phase in actions-quiz-phase.tsx
+      // Story wird NICHT mehr hier generiert, sondern:
+      // 1. User startet Dialog-Phase (SOFORT nach Research - 2-3s statt 15-30s!)
+      // 2. Dialog läuft... (User beantwortet Fragen)
+      // 3. Dialog endet → Phase-Wechsel zu 'story'
+      // 4. StoryGeneratorWrapper prüft: Kapitel vorhanden?
+      //    - NEIN → generateStory() aufrufen (im Hintergrund während User wartet)
+      //    - JA → Kapitel direkt anzeigen
       //
-      // Vorteil: Maximal personalisiert basierend auf Dialog-Erkenntnissen
+      // Vorteil:
+      // - User kommt SOFORT in den Dialog (keine Wartezeit!)
+      // - Story wird während Dialog generiert (User merkt nichts)
+      // - Maximal personalisiert basierend auf Dialog-Erkenntnissen
     } catch (error) {
       console.error("Content generation error:", error);
 

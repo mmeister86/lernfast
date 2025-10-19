@@ -18,8 +18,7 @@ type LoadingPhase =
   | "suggesting"
   | "analyzing"
   | "researching"
-  | "structuring"
-  | "finalizing";
+  | "preparing";
 
 function HomeContent() {
   const router = useRouter();
@@ -118,14 +117,10 @@ function HomeContent() {
 
     try {
       // Phase 1: Analysiere (kurze Verzögerung für bessere UX)
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Phase 2: Recherche
       setLoadingPhase("researching");
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Phase 3: Strukturierung
-      setLoadingPhase("structuring");
 
       const response = await fetch("/api/trigger-lesson", {
         method: "POST",
@@ -150,16 +145,16 @@ function HomeContent() {
         return;
       }
 
-      // Phase 4: Finalisiere
-      setLoadingPhase("finalizing");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Phase 3: Bereite Dialog vor
+      setLoadingPhase("preparing");
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       // URL-Parameter clearen (verhindert Re-Trigger beim Zurück-Navigieren)
       const url = new URL(window.location.href);
       url.searchParams.delete("topic");
       window.history.replaceState({}, "", url.pathname);
 
-      // Erfolg → Weiterleitung zum Lesson-View
+      // Erfolg → Weiterleitung zum Lesson-View (Dialog-Phase startet SOFORT!)
       router.push(`/lesson/${data.lessonId}`);
     } catch (err) {
       console.error("Lesson creation error:", err);
