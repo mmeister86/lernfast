@@ -15,7 +15,7 @@
 - **KI-generierte Inhalte:** Personalisierte Stories mit Recharts-Visualisierungen, adaptive Quiz-Fragen
 - **Neobrutalismus-Design** für moderne, zugängliche UX
 - **Freemium-Modell:** "Micro-Dose" (3-5 Kapitel, gratis/limitiert) vs "Deep Dive" (10+ Kapitel, Premium)
-- **Legacy-Support:** Alte Flashcards mit D3.js-Visualisierungen (Backward Compatibility)
+- **Legacy-Support:** Alte Flashcards mit Thesys-Visualisierungen (Backward Compatibility)
 
 ### Zielgruppe
 
@@ -35,7 +35,6 @@
 - **UI-Komponenten:** Custom Neobrutalism UI (components/ui/)
 - **Visualisierung:**
   - **Recharts** v3.2.1 - Moderne Charts für Interactive Learning (Timeline, Comparison, Process, Concept-Map)
-  - **D3.js** v7 - Legacy: Interaktive Graph-Visualisierungen für alte Flashcards
 - **Animation:** Framer Motion v12.23+ (Phase-Transitions, Card-Flips)
 - **AI SDK:** Vercel AI SDK v5 (`ai`, `@ai-sdk/openai`, `@ai-sdk/react`, `@ai-sdk/rsc`) für Dialog-Phase mit `streamUI`
 
@@ -156,7 +155,7 @@ lesson_id UUID REFERENCES lesson(id) ON DELETE CASCADE
 question TEXT NOT NULL -- LEGACY: Flashcard-Frage (alte Lessons)
 answer TEXT -- ✅ NEU: Explanatory text (150-300 Wörter) für Interactive Learning
 thesys_json JSONB -- LEGACY: Strukturierter JSON-Output (alte Flashcards)
-visualizations JSONB DEFAULT '[]'::jsonb -- LEGACY: Array von D3.js-Visualisierungen
+visualizations JSONB DEFAULT '[]'::jsonb -- DEPRECATED: Nicht mehr verwendet (entfernt 2025-10-19)
 learning_content JSONB DEFAULT '{}'::jsonb -- ✅ NEU: Story-Kapitel oder Quiz-Fragen (Interactive Learning)
 phase TEXT CHECK (phase IN ('dialog', 'story', 'quiz')) -- ✅ NEU: Zu welcher Phase gehört diese Karte?
 order_index INT DEFAULT 0 -- ✅ NEU: Reihenfolge der Kapitel/Fragen
@@ -193,22 +192,7 @@ created_at TIMESTAMP DEFAULT NOW()
 
 **LEGACY `visualizations` Struktur (alte Flashcards):**
 
-```json
-[
-  {
-    "type": "d3",
-    "data": {
-      "layout": "force-directed",
-      "nodes": [
-        { "id": "1", "label": "Konzept", "type": "concept" },
-        { "id": "2", "label": "Detail", "type": "detail" }
-      ],
-      "links": [{ "source": "1", "target": "2", "label": "erklärt" }],
-      "config": { "nodeRadius": 50, "linkDistance": 120 }
-    }
-  }
-]
-```
+Wurde entfernt (2025-10-19). Alte Flashcards mit Thesys-Visualisierungen werden weiterhin unterstützt.
 
 #### Tabelle: `lesson_score` ✅ NEU: Interactive Learning Score-System
 
@@ -314,7 +298,6 @@ lernfast/
 │   ├── flashcard/                    # ✅ Flashcard-Komponenten (LEGACY für alte Lessons)
 │   │   ├── flashcard.tsx
 │   │   ├── flashcard-viewer.tsx
-│   │   ├── d3-visualization.tsx      # D3.js Rendering (force-directed, hierarchical, radial, cluster)
 │   │   └── mermaid-visualization.tsx # Mermaid SVG Rendering
 │   └── dashboard/                    # ✅ Dashboard-Komponenten
 │       ├── lesson-list.tsx
@@ -472,7 +455,7 @@ lernfast/
 - [ ] Asynchrone KI-Verarbeitung + E-Mail-Benachrichtigung bei Fertigstellung
 - [ ] Spaced Repetition-Algorithmus (optimierte Wiederholungsintervalle)
 - [ ] Audio-Zusammenfassungen (TTS für Flashcards)
-- [x] D3.js Integration für interaktive Graphen (Branch: d3js)
+- [x] ~~D3.js Integration~~ (Entfernt 2025-10-19 - Ersetzt durch Recharts)
 - [ ] Topic-basiertes Caching (mehrere User teilen Flashcards)
 - [ ] Edge Functions für globale Performance
 
@@ -672,246 +655,6 @@ Die KI erhält folgende Instruktionen:
 
 ---
 
-## D3.js Integration (Interaktive Graph-Visualisierungen)
-
-**Status:** ✅ Vollständig implementiert im Branch `d3js` (2025-10-13)
-
-### Übersicht
-
-Interaktive Graph-Visualisierungen mit D3.js v7 für alle Flashcards. Die KI wählt das optimale Layout basierend auf dem Lerninhalt:
-
-1. **Force-Directed** - Interaktive Concept Maps mit Drag & Drop
-2. **Hierarchical** - Top-Down Tree-Strukturen für Prozesse
-3. **Radial** - Zentrale Konzepte mit radialen Verbindungen
-4. **Cluster** - Gruppierte Themen-Kategorien
-
-### Architektur (Clientseitiges D3.js Rendering)
-
-```
-OpenAI LLM
-    ↓ (wählt D3-Layout basierend auf Inhalt)
-Flashcard mit D3-Visualisierung (nodes, links, layout)
-    ↓
-Speichere in Datenbank (JSON-Struktur)
-    ↓
-Browser lädt Flashcard-Component
-    ↓
-D3VisualizationComponent (Client-Component)
-    ↓
-D3.js rendert interaktiven SVG-Graph
-    ↓
-User sieht & interagiert mit Graph (Drag & Drop bei Force-Directed)
-```
-
-**Wichtig:** D3.js wird clientseitig gerendert, da:
-
-- Interaktivität (Drag & Drop) nur im Browser möglich
-- D3 benötigt DOM-Zugriff für Force-Simulationen
-- Bessere Performance durch Browser-Caching
-- Keine serverseitige Rendering-Komplexität
-
-### Component-Struktur
-
-**Datei:** `components/flashcard/d3-visualization.tsx`
-
-```typescript
-"use client"; // MUSS Client-Component sein!
-
-import { useEffect, useRef } from "react";
-import * as d3 from "d3";
-import type { D3Visualization } from "@/lib/lesson.types";
-
-export function D3VisualizationComponent({ visualization }) {
-  const svgRef = useRef<SVGSVGElement>(null);
-
-  useEffect(() => {
-    // D3 Force Simulation, Hierarchical Tree, Radial oder Cluster Layout
-    // Neobrutalismus-Styling (Retro Palette, 4px borders, 15px radius)
-  }, [visualization]);
-
-  return (
-    <div className="bg-white border-4 border-black rounded-[15px] p-4">
-      <svg ref={svgRef} className="w-full h-auto" />
-    </div>
-  );
-}
-```
-
-**Unterstützte Layout-Typen:**
-
-- `force-directed` - Interaktive Concept Maps mit Drag & Drop
-- `hierarchical` - Top-Down Tree-Strukturen
-- `radial` - Zentrale Konzepte mit radialen Verbindungen
-- `cluster` - Gruppierte Themen-Kategorien
-
-### Neobrutalismus-Styling für D3.js
-
-Automatisch angewendetes Styling in allen Layouts:
-
-- **Dicke schwarze Borders:** 4px stroke-width für Nodes und Links
-- **15px Border-Radius:** Container mit `rounded-[15px]`
-- **Retro-Farben:**
-  - Concept: Peach (#FFC667)
-  - Detail: White (#FFFFFF)
-  - Example: Pink (#FB7DA8)
-  - Definition: Purple (#662CB7)
-- **Font-Weight 800:** Extrabold für alle Node-Labels
-- **Responsive SVG:** viewBox scaling für Mobile-Optimierung
-
-### Intelligente Layout-Auswahl (Prompt Engineering)
-
-Die KI wählt das optimale D3-Layout basierend auf dem Lerninhalt:
-
-**Force-Directed Layout verwenden für:**
-
-- Machine Learning Konzepte (Supervised, Unsupervised, Reinforcement)
-- Abstrakte Begriffe mit vielen Beziehungen
-- Vernetzte Wissensstrukturen
-- REST API Prinzipien (Stateless, Cacheable, etc.)
-
-**Hierarchical Layout verwenden für:**
-
-- HTTP Request Lifecycle (Client → DNS → TCP → Request → Response)
-- Algorithmen (Schritt-für-Schritt Abläufe)
-- Build Pipelines
-- Entscheidungsbäume
-
-**Radial Layout verwenden für:**
-
-- JavaScript Frameworks Übersicht (Zentrum: JS, Äste: React, Vue, Angular)
-- React Hooks (Zentrum: React, Äste: useState, useEffect, etc.)
-- Feature-Kategorien
-
-**Cluster Layout verwenden für:**
-
-- Vergleiche zwischen ähnlichen Technologien
-- Gruppierte Themen-Kategorien
-- Taxonomien
-
-### Performance-Optimierung
-
-**Clientseitiges D3.js Rendering:**
-
-- D3-Daten (nodes, links) werden als JSON in Datenbank gespeichert
-- Browser rendert interaktive SVG-Graphen on-the-fly
-- Force-Simulation läuft nur einmal beim initialen Rendering
-- Browser-Caching für wiederholte Ansichten
-
-**Vorteile:**
-
-- Volle Interaktivität (Drag & Drop, Hover-Effekte)
-- Einfache Architektur (keine serverseitige SVG-Generierung)
-- Skalierbar (Rendering-Last auf Client verteilt)
-- Next.js SSR-kompatibel (D3-Component mit `"use client"` Directive)
-
-### TypeScript Types
-
-```typescript
-export type VisualizationType = "thesys" | "d3";
-
-export type D3LayoutType =
-  | "force-directed"
-  | "hierarchical"
-  | "radial"
-  | "cluster";
-
-export interface D3Node {
-  id: string;
-  label: string;
-  type: "concept" | "detail" | "example" | "definition";
-  color?: string;
-}
-
-export interface D3Link {
-  source: string;
-  target: string;
-  label?: string;
-  strength?: number;
-}
-
-export interface D3Visualization {
-  layout: D3LayoutType;
-  nodes: D3Node[];
-  links: D3Link[];
-  config?: {
-    width?: number;
-    height?: number;
-    nodeRadius?: number;
-    linkDistance?: number;
-  };
-}
-
-export interface Visualization {
-  type: VisualizationType;
-  data: ThesysJSON | D3Visualization;
-}
-```
-
-### Beispiel-Output (OpenAI Response)
-
-```json
-{
-  "cards": [
-    {
-      "question": "Wie läuft ein HTTP Request ab?",
-      "visualizations": [
-        {
-          "type": "d3",
-          "data": {
-            "layout": "hierarchical",
-            "nodes": [
-              { "id": "1", "label": "Client", "type": "concept" },
-              { "id": "2", "label": "DNS Lookup", "type": "detail" },
-              { "id": "3", "label": "TCP Verbindung", "type": "detail" },
-              { "id": "4", "label": "HTTP Request", "type": "detail" },
-              { "id": "5", "label": "Server Verarbeitung", "type": "detail" },
-              { "id": "6", "label": "HTTP Response", "type": "example" }
-            ],
-            "links": [
-              { "source": "1", "target": "2" },
-              { "source": "2", "target": "3" },
-              { "source": "3", "target": "4" },
-              { "source": "4", "target": "5" },
-              { "source": "5", "target": "6" }
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "question": "Was sind die Haupttypen von Machine Learning?",
-      "visualizations": [
-        {
-          "type": "d3",
-          "data": {
-            "layout": "force-directed",
-            "nodes": [
-              { "id": "1", "label": "Machine Learning", "type": "concept" },
-              { "id": "2", "label": "Supervised", "type": "detail" },
-              { "id": "3", "label": "Unsupervised", "type": "detail" },
-              { "id": "4", "label": "Classification", "type": "example" },
-              { "id": "5", "label": "Regression", "type": "example" }
-            ],
-            "links": [
-              { "source": "1", "target": "2", "label": "Typ" },
-              { "source": "1", "target": "3", "label": "Typ" },
-              { "source": "2", "target": "4", "label": "umfasst" },
-              { "source": "2", "target": "5", "label": "umfasst" }
-            ],
-            "config": {
-              "nodeRadius": 50,
-              "linkDistance": 120
-            }
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-
----
-
 ## Hybrid System: Interactive Learning + Legacy Flashcards ✅ NEU
 
 **Status:** ✅ Vollständig implementiert (Backward Compatibility)
@@ -921,7 +664,7 @@ export interface Visualization {
 Die Codebase unterstützt **zwei verschiedene Lernsysteme** parallel, um Backward Compatibility mit alten Lessons zu gewährleisten:
 
 1. **Interactive Learning** (NEU) - 3-Phasen-System (Dialog → Story → Quiz)
-2. **Legacy Flashcards** (ALT) - Klassisches Swipeable-Karten-Interface mit D3.js-Visualisierungen
+2. **Legacy Flashcards** (ALT) - Klassisches Swipeable-Karten-Interface mit Thesys-Visualisierungen
 
 ### Entscheidungs-Logik
 
@@ -955,7 +698,7 @@ switch (lessonWithFlashcards.current_phase) {
 | `lesson.current_phase` | `NULL` | `'dialog' \| 'story' \| 'quiz' \| 'completed'` |
 | `flashcard.phase` | `NULL` | `'dialog' \| 'story' \| 'quiz'` |
 | `flashcard.learning_content` | `{}` (leer) | Story/Quiz-Daten |
-| `flashcard.visualizations` | D3.js-Daten | `[]` (leer) |
+| `flashcard.visualizations` | `[]` (deprecated) | `[]` (leer) |
 | `flashcard.thesys_json` | Thesys-Daten (optional) | `NULL` |
 | `lesson_score` Eintrag | Nicht vorhanden | Vorhanden |
 
@@ -972,7 +715,6 @@ switch (lessonWithFlashcards.current_phase) {
 **Legacy Flashcards (`/components/flashcard/`):**
 - `flashcard-viewer.tsx` - Swipeable Card-Interface
 - `flashcard.tsx` - Einzelne Flashcard
-- `d3-visualization.tsx` - D3.js Rendering
 - `mermaid-visualization.tsx` - Mermaid SVG Rendering
 
 ### Dashboard-Anzeige
@@ -1666,7 +1408,7 @@ export const getCachedFlashcardsByTopic = unstable_cache(
 - ✅ **4 OpenAI Models:** Spezialisierte Models für Dialog, Story, Quiz und Topic-Suggestions
 - ✅ **Framer Motion:** Smooth Phase-Transitions und Card-Flip Animationen
 - ✅ **Next.js 15 Caching:** Server-side Caching mit `unstable_cache` (86% schneller)
-- ✅ **D3.js Integration (Legacy):** Interaktive Graph-Visualisierungen für alte Flashcards
+- ✅ ~~**D3.js Integration**~~ (Entfernt 2025-10-19 - Ersetzt durch Recharts)
 - ✅ **404-Seite:** Humorvolle 404 mit Hamster-Maskottchen + interaktivem Quiz
 - ✅ **Debug-Logging:** Umfassendes 5-Ebenen-Logging für Visualisierungen
 

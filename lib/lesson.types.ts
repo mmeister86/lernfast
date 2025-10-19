@@ -58,59 +58,18 @@ export interface Lesson {
 
 /**
  * Visualisierungstypen für Flashcards
+ * HINWEIS: "d3" wurde entfernt - neue Lessons nutzen Recharts in learning_content
+ * Nur "thesys" wird noch für sehr alte Legacy-Flashcards unterstützt
  */
-export type VisualizationType = "thesys" | "d3";
+export type VisualizationType = "thesys";
 
 /**
- * D3 Layout-Typen für Graph-Visualisierungen
- */
-export type D3LayoutType =
-  | "force-directed" // Für Concept Maps mit freier Anordnung
-  | "hierarchical" // Für Tree-Strukturen (Top-Down)
-  | "radial" // Für zentrale Konzepte mit radialen Verbindungen
-  | "cluster"; // Für gruppierte Themen
-
-/**
- * D3 Node für Graph-Visualisierung
- */
-export interface D3Node {
-  id: string;
-  label: string;
-  type: "concept" | "detail" | "example" | "definition";
-  color?: string; // Optional: Custom color override
-}
-
-/**
- * D3 Link (Verbindung) zwischen zwei Nodes
- */
-export interface D3Link {
-  source: string; // Node ID
-  target: string; // Node ID
-  label?: string; // Optional edge label
-  strength?: number; // Optional: 0-1 für Force-Simulation
-}
-
-/**
- * D3 Visualisierung mit Nodes, Links und Layout-Konfiguration
- */
-export interface D3Visualization {
-  layout: D3LayoutType;
-  nodes: D3Node[];
-  links: D3Link[];
-  config?: {
-    width?: number;
-    height?: number;
-    nodeRadius?: number;
-    linkDistance?: number;
-  };
-}
-
-/**
- * Generische Visualisierung - kann entweder Thesys oder D3 sein
+ * Generische Visualisierung - nur noch Thesys (Legacy)
+ * D3.js wurde vollständig durch Recharts ersetzt
  */
 export interface Visualization {
   type: VisualizationType;
-  data: ThesysJSON | D3Visualization;
+  data: ThesysJSON;
 }
 
 /**

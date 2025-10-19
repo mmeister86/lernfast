@@ -106,8 +106,8 @@ CREATE TABLE IF NOT EXISTS "flashcard" (
 
     -- LEGACY: Flashcard-System (alte Lessons)
     question TEXT, -- LEGACY: Flashcard-Frage
-    thesys_json JSONB, -- LEGACY: Strukturierter JSON-Output
-    visualizations JSONB DEFAULT '[]'::jsonb, -- LEGACY: Array von D3.js-Visualisierungen
+    thesys_json JSONB, -- LEGACY: Strukturierter JSON-Output (sehr alte Lessons)
+    visualizations JSONB DEFAULT '[]'::jsonb, -- DEPRECATED: D3.js-Visualisierungen wurden entfernt (2025-10-19)
 
     -- INTERACTIVE LEARNING: Story + Quiz
     answer TEXT, -- Explanatory text (150-300 Wörter)

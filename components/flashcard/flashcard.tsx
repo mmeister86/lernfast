@@ -5,9 +5,7 @@ import type {
   Flashcard as FlashcardType,
   ThesysJSON,
   Visualization,
-  D3Visualization,
 } from "@/lib/lesson.types";
-import { D3VisualizationComponent } from "./d3-visualization";
 
 type FlashcardProps = {
   flashcard: FlashcardType;
@@ -159,7 +157,8 @@ function ThesysVisualization({ thesysJson }: { thesysJson: ThesysJSON }) {
 }
 
 /**
- * Renderer für alle Visualisierungen (Thesys + D3)
+ * Renderer für alle Visualisierungen (nur Thesys)
+ * D3.js wurde durch Recharts ersetzt - nur Legacy-Support für alte Thesys-Visualisierungen
  */
 function VisualizationRenderer({
   visualizations,
@@ -170,11 +169,7 @@ function VisualizationRenderer({
     <div className="text-black space-y-6">
       {visualizations.map((viz, idx) => (
         <div key={idx}>
-          {viz.type === "d3" ? (
-            <D3VisualizationComponent
-              visualization={viz.data as D3Visualization}
-            />
-          ) : viz.type === "thesys" ? (
+          {viz.type === "thesys" ? (
             <ThesysVisualization thesysJson={viz.data as ThesysJSON} />
           ) : null}
         </div>

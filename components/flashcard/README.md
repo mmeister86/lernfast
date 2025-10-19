@@ -33,7 +33,7 @@ Komponenten für die Anzeige und Interaktion mit Flashcards.
 
 - 3D-Flip-Animation beim Klick
 - Vorderseite: Frage (großer Text, zentriert, weiß)
-- Rückseite: D3.js-Visualisierung (teal background)
+- Rückseite: Thesys-Visualisierung (teal background)
 - Neobrutalismus-Design (15px radius, 8px shadow, 4px border)
 - Legacy-Support für alte Thesys-JSON Flashcards
 
@@ -47,43 +47,11 @@ Komponenten für die Anzeige und Interaktion mit Flashcards.
 }
 ```
 
-## D3.js-Visualisierung
+## Legacy-Visualisierungen
 
-Interaktive Graph-Visualisierungen mit D3.js v7:
+**HINWEIS:** D3.js-Visualisierungen wurden entfernt (2025-10-19) und durch Recharts ersetzt.
 
-### Unterstützte Layouts:
-
-1. **Force-Directed** - Interaktive Concept Maps
-
-   - Nodes sind draggable
-   - Physik-basierte Anordnung
-   - Perfekt für: Konzeptuelle Zusammenhänge, vernetzte Wissensstrukturen
-
-2. **Hierarchical** - Top-Down Tree-Strukturen
-
-   - Klare hierarchische Darstellung
-   - Perfekt für: Prozess-Flows, Abhängigkeiten
-
-3. **Radial** - Zentrale Konzepte mit radialen Verbindungen
-
-   - Zentrum-basiertes Layout
-   - Perfekt für: Taxonomien, Feature-Übersichten
-
-4. **Cluster** - Gruppierte Themen-Kategorien
-   - Cluster-basierte Anordnung
-   - Perfekt für: Vergleiche, kategorisierte Listen
-
-### Features:
-
-- Drag & Drop Nodes (Force-Directed Layout)
-- Responsive SVG mit viewBox scaling
-- Neobrutalismus-Styling (Retro Palette, 4px borders)
-- Link-Labels für Beziehungen
-- Node-Types mit Farb-Coding:
-  - Concept (Peach #FFC667)
-  - Detail (White #FFFFFF)
-  - Example (Pink #FB7DA8)
-  - Definition (Purple #662CB7)
+Alte Flashcards nutzen Thesys-JSON für strukturierte Konzept-Maps. Neue Lessons verwenden das Interactive Learning System mit Recharts-Visualisierungen.
 
 ## Usage
 
