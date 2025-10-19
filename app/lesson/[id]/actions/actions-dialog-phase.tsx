@@ -9,6 +9,7 @@ import React, { type ReactNode } from "react";
 import { streamUI } from "@ai-sdk/rsc";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
+import { createServiceClient } from "@/lib/supabase/server";
 import {
   DialogMessage,
   AssessmentLoading,
@@ -98,6 +99,31 @@ export async function continueDialog(
   const answerNum = currentAnswerCount || 1;
   const maxAns = maxAnswers || 5;
 
+  // ✅ NEU: Trigger Background Story-Generierung nach 1. User-Antwort
+  // Story wird während des Dialogs generiert und ist bei Dialog-Ende (nach ~30-60s) fertig
+  if (answerNum === 1) {
+    try {
+      // Fire & Forget via fetch (verhindert Supabase Connection Issues)
+      // Verwende fetch statt direkten Server Action Call wegen besserer Isolation
+      fetch(`${process.env.NEXT_PUBLIC_BETTER_AUTH_URL || 'http://localhost:3000'}/api/generate-story-background`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lessonId,
+          userId,
+          topic,
+        }),
+      }).catch((err) => {
+        console.error("⚠️ Failed to trigger background story generation:", err);
+        // Silent failure - Story wird später in StoryGeneratorWrapper nachgeholt
+      });
+      console.log("✅ Background story generation triggered after 1st turn for lesson:", lessonId);
+    } catch (error) {
+      console.error("⚠️ Exception while triggering background story:", error);
+      // Weitermachen - Story wird später nachgeholt
+    }
+  }
+
   const result = await streamUI({
     model: openai(dialogModel),
     system: `Du bist ein freundlicher Lern-Coach für das Thema "${topic}".
@@ -163,7 +189,8 @@ WICHTIG: ${answerNum >= 4 ? "AB FRAGE 4: NUR NOCH TOOL-CALLS! Keine Text-Antwort
           await updateDialogScore(lessonId, userId, confidence);
 
           // ✅ NEU: Speichere Dialog-Metadata für Story/Quiz-Generierung
-          await saveDialogMetadata(lessonId, userId, {
+          // WICHTIG: saveDialogMetadata wirft KEINE Errors mehr!
+          const metadataSaved = await saveDialogMetadata(lessonId, userId, {
             conversationHistory: conversationHistory,
             knowledgeLevel: knowledgeLevel,
             assessmentReasoning: `Assessment after ${conversationHistory.length} exchanges. Confidence: ${confidence}%`,
@@ -171,6 +198,11 @@ WICHTIG: ${answerNum >= 4 ? "AB FRAGE 4: NUR NOCH TOOL-CALLS! Keine Text-Antwort
               .filter((msg) => msg.role === "user")
               .map((msg) => msg.content),
           });
+
+          if (!metadataSaved) {
+            console.warn("⚠️ Dialog metadata could not be saved - continuing without it");
+            // Story/Quiz können auch ohne Metadata generiert werden (Fallback)
+          }
 
           if (readyForStory) {
             // Update Phase zu 'story'
@@ -259,7 +291,8 @@ Nutze das assessKnowledge-Tool, um die Bewertung zu speichern und zur Story-Phas
           await updateDialogScore(lessonId, userId, confidence);
 
           // ✅ NEU: Speichere Dialog-Metadata für Story/Quiz-Generierung
-          await saveDialogMetadata(lessonId, userId, {
+          // WICHTIG: saveDialogMetadata wirft KEINE Errors mehr!
+          const metadataSaved = await saveDialogMetadata(lessonId, userId, {
             conversationHistory: conversationHistory,
             knowledgeLevel: knowledgeLevel,
             assessmentReasoning: reasoning,
@@ -267,6 +300,11 @@ Nutze das assessKnowledge-Tool, um die Bewertung zu speichern und zur Story-Phas
               .filter((msg) => msg.role === "user")
               .map((msg) => msg.content),
           });
+
+          if (!metadataSaved) {
+            console.warn("⚠️ Dialog metadata could not be saved (forceAssessment) - continuing without it");
+            // Story/Quiz können auch ohne Metadata generiert werden (Fallback)
+          }
 
           // Wechsle automatisch zur Story-Phase
           await updatePhase(lessonId, "story");

@@ -25,6 +25,16 @@ import type { ResearchData } from "@/lib/lesson.types";
 // STORY-PHASE: Narrative Lernerfahrung (Non-Streaming)
 // ============================================
 
+/**
+ * HINWEIS: Background Story-Generation
+ *
+ * Story wird nach der 1. User-Antwort im Dialog getriggert via:
+ * → POST /api/generate-story-background
+ *
+ * Dadurch ist die Story bei Dialog-Ende (nach ~30-60s) bereits fertig.
+ * Falls nicht: StoryGeneratorWrapper generiert Story on-demand (Fallback).
+ */
+
 export async function generateStory(
   lessonId: string,
   userId: string,
