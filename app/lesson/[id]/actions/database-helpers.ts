@@ -126,6 +126,11 @@ export async function getResearchData(
  * Wird nach Dialog-Assessment aufgerufen
  *
  * Best Practice: Upsert für idempotente Updates
+ *
+ * @returns {Promise<boolean>} true wenn erfolgreich, false bei Fehler (nicht critical)
+ *
+ * WICHTIG: Wirft KEINEN Error - Metadata ist optional!
+ * Bei Failure wird nur geloggt, damit UI nicht hängen bleibt.
  */
 export async function saveDialogMetadata(
   lessonId: string,
@@ -136,29 +141,42 @@ export async function saveDialogMetadata(
     assessmentReasoning?: string;
     userResponses?: string[];
   }
-) {
-  const supabase = createServiceClient();
+): Promise<boolean> {
+  try {
+    const supabase = createServiceClient();
 
-  const { error } = await supabase.from("lesson_score").upsert(
-    {
-      lesson_id: lessonId,
-      user_id: userId,
-      metadata: metadata as LessonScoreMetadata,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "lesson_id,user_id" }
-  );
+    const { error } = await supabase.from("lesson_score").upsert(
+      {
+        lesson_id: lessonId,
+        user_id: userId,
+        metadata: metadata as LessonScoreMetadata,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "lesson_id,user_id" }
+    );
 
-  if (error) {
-    console.error("Failed to save dialog metadata:", error.message);
-    throw new Error(`Dialog metadata save failed: ${error.message}`);
+    if (error) {
+      console.error("⚠️ Failed to save dialog metadata:", error.message);
+      console.error("   Lesson ID:", lessonId);
+      console.error("   User ID:", userId);
+      console.error("   Error Details:", error);
+      return false;
+    }
+
+    console.log("✅ Dialog metadata saved:", {
+      lessonId,
+      knowledgeLevel: metadata.knowledgeLevel,
+      conversationLength: metadata.conversationHistory.length,
+    });
+    return true;
+  } catch (error) {
+    // Network errors, fetch failed, etc.
+    console.error("⚠️ Exception while saving dialog metadata:", error);
+    console.error("   Lesson ID:", lessonId);
+    console.error("   User ID:", userId);
+    // Metadata ist optional - kein Hard-Fail!
+    return false;
   }
-
-  console.log("✅ Dialog metadata saved:", {
-    lessonId,
-    knowledgeLevel: metadata.knowledgeLevel,
-    conversationLength: metadata.conversationHistory.length,
-  });
 }
 
 /**
