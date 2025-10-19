@@ -109,6 +109,7 @@ export default async function LessonPage({ params }: PageProps) {
           title: storyContent?.visualizations?.[0]?.title || "",
           chartData: storyContent?.visualizations?.[0]?.chartData || [],
         },
+        audioUrl: storyContent?.audioUrl || undefined, // ✅ NEU: Vorab-generiertes Audio
       };
     });
 

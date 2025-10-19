@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ModernVisualization } from "./modern-visualization";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
+import { TTSPlayer } from "./tts-player";
 import type { StoryChapter } from "@/lib/lesson.types";
 
 interface StoryPhaseProps {
@@ -22,6 +24,9 @@ interface StoryPhaseProps {
 
 export function StoryPhase({ chapters, lessonId, userId, topic, lessonType }: StoryPhaseProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const userLanguage = session?.user?.language || "de";
+
   const [currentChapter, setCurrentChapter] = useState(0);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
 
@@ -77,6 +82,14 @@ export function StoryPhase({ chapters, lessonId, userId, topic, lessonType }: St
           📖 {currentChapterData.title}
         </motion.h2>
         <div className="flex items-center gap-3">
+          {/* TTS Button für ganzes Kapitel */}
+          <TTSPlayer
+            key={currentChapter} // ✅ React re-mounted bei Chapter-Wechsel (neues Audio pro Kapitel)
+            text={`${currentChapterData.narrative}\n\nDas Wichtigste:\n${currentChapterData.keyLearnings.join("\n")}`}
+            language={userLanguage}
+            variant="default"
+            preGeneratedAudioUrl={currentChapterData.audioUrl} // ✅ Nutze vorab-generiertes Audio (falls vorhanden)
+          />
           <span className="text-lg font-medium text-foreground/70">
             Kapitel {currentChapter + 1} von {chapters.length}
           </span>

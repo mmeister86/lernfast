@@ -1,4 +1,4 @@
-import React, { type ReactNode } from "react";
+import React from "react";
 
 // ============================================
 // HELPER COMPONENTS FÜR STREAMING UI
@@ -15,6 +15,10 @@ export function DialogMessage({
     <div className="mb-4">
       <div className="p-4 rounded-[15px] border-4 border-black bg-[#FFC667]">
         <p className="text-lg font-medium text-black">{content}</p>
+        {/* TTS wird clientseitig in Dialog-Phase hinzugefügt via data-attribute */}
+        {isComplete && (
+          <div data-dialog-text={content} className="dialog-tts-trigger" />
+        )}
       </div>
     </div>
   );

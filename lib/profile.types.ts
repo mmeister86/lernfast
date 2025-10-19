@@ -83,6 +83,10 @@ export interface UserProfile {
   preferredCardCount: number;
   onboardingCompleted: boolean;
   profileUpdatedAt?: Date | null;
+  // TTS-Einstellungen (MVP - Optional für Phase 2)
+  ttsEnabled?: boolean; // TTS an/aus (Default: true)
+  ttsAutoPlay?: boolean; // Auto-Play bei KI-Antworten (Default: false)
+  ttsVoice?: string; // Manuelle Voice-Auswahl (Default: auto basierend auf language)
 }
 
 // ============================================

@@ -209,6 +209,7 @@ export interface StoryContent {
   narrative: string;
   keyPoints: string[];
   visualizations: StoryVisualization[];
+  audioUrl?: string; // ✅ NEU: Vorab-generiertes Audio (Base64-URL)
 }
 
 /**
@@ -243,6 +244,7 @@ export interface StoryChapter {
     title: string;
     chartData: any[];
   };
+  audioUrl?: string; // ✅ NEU: Vorab-generiertes Audio (optional)
 }
 
 /**

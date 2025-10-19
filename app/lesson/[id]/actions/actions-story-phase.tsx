@@ -207,6 +207,9 @@ Du MUSST für jedes Kapitel eine passende Visualisierung mit ECHTEN, SINNVOLLEN 
 
   console.log(`✅ Story object generated with ${story.chapters.length} chapters.`);
 
+  // Audio wird on-demand generiert (kein proaktives Caching wegen 2MB Next.js Limit)
+  // Siehe docs/TTS-SUPABASE-STORAGE.md für langfristige Lösung mit Supabase Storage
+
   const chaptersToInsert = story.chapters.map((chapter, index) => {
     let finalChartData = chapter.visualizationData.chartData;
 
@@ -251,6 +254,7 @@ Du MUSST für jedes Kapitel eine passende Visualisierung mit ECHTEN, SINNVOLLEN 
               chartData: validatedChartData,
             },
           ],
+          // audioUrl wird on-demand generiert (kein proaktives Caching wegen 2MB Next.js Limit)
         },
       },
     };

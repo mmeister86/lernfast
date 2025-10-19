@@ -14,6 +14,8 @@ import {
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
+import { TTSPlayer } from "./tts-player";
 
 interface DialogPhaseProps {
   lessonId: string;
@@ -25,6 +27,9 @@ const MAX_DIALOG_ANSWERS = 5;
 
 export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const userLanguage = session?.user?.language || "de";
+
   const [messages, setMessages] = useState<ReactNode[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -170,9 +175,17 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
       >
         <div className="flex items-start justify-between gap-4 mb-3">
           <div className="flex-1">
-            <h2 className="text-3xl font-extrabold text-black mb-2">
-              📚 Lass uns reden!
-            </h2>
+            <div className="flex items-center gap-3 mb-2">
+              <h2 className="text-3xl font-extrabold text-black">
+                📚 Lass uns reden!
+              </h2>
+              {/* TTS-Button für Dialog-Anleitung */}
+              <TTSPlayer
+                text={`Ich möchte dein Vorwissen zu ${topic} kennenlernen. Beantworte die Fragen ehrlich - das hilft mir, die perfekte Lerngeschichte für dich zu erstellen!`}
+                language={userLanguage}
+                variant="compact"
+              />
+            </div>
             <p className="text-lg font-medium text-black/80">
               Ich möchte dein Vorwissen zu <strong>{topic}</strong>{" "}
               kennenlernen. Beantworte noch {remainingAnswers}{" "}
@@ -221,8 +234,11 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.1 }}
+            className="dialog-message-wrapper"
           >
             {msg}
+            {/* TTS-Button wird clientseitig hinzugefügt */}
+            <DialogMessageTTS messageIndex={i} userLanguage={userLanguage} />
           </motion.div>
         ))}
 
@@ -319,6 +335,30 @@ function TypingIndicator() {
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+function DialogMessageTTS({ messageIndex, userLanguage }: { messageIndex: number; userLanguage: string }) {
+  const [dialogText, setDialogText] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Finde das data-dialog-text Attribut in der Parent-Komponente
+    const wrapper = document.querySelectorAll('.dialog-message-wrapper')[messageIndex];
+    if (wrapper) {
+      const trigger = wrapper.querySelector('.dialog-tts-trigger');
+      if (trigger) {
+        const text = trigger.getAttribute('data-dialog-text');
+        setDialogText(text);
+      }
+    }
+  }, [messageIndex]);
+
+  if (!dialogText) return null;
+
+  return (
+    <div className="mt-2">
+      <TTSPlayer text={dialogText} language={userLanguage} variant="compact" />
     </div>
   );
 }
