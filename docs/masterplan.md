@@ -48,7 +48,7 @@
 | **Datenbank & Storage** | Speicherung von Benutzerdaten, Lernfortschritt, Metadaten und visuellen Assets.                                       | **Supabase (PostgreSQL + Storage)**                                  |
 | **Authentifizierung**   | Benutzerregistrierung, Login und Session Management.                                                                  | **Better-Auth**                                                      |
 | **Email-Validierung**   | Email-Normalisierung und Blockierung von Wegwerf-Domains.                                                             | **Better-Auth-Harmony** (55k+ Domains blockiert)                     |
-| **Monetarisierung**     | Abonnement- und Zahlungsverwaltung.                                                                                   | **Stripe**                                                           |
+| **Monetarisierung**     | Abonnement- und Zahlungsverwaltung.                                                                                   | **LemonSqueezy**                                                     |
 | **Rate Limiting/Queue** | Begrenzung der KI-Anfragen; Warteschlange.                                                                            | **Upstash (Redis)**                                                  |
 | **E-Mail-Dienst**       | Transaktionale E-Mails (Passwort zurücksetzen, Bestätigungen).                                                        | **Resend**                                                           |
 | **KI-Pipeline**         | **Der Motor:** Next.js API Routes für Lesson-Generierung. Steuert LLM-Prompting, API-Aufrufe und Datenstrukturierung. | **Next.js API Routes** (`/api/generate-lesson`)                      |
@@ -65,7 +65,7 @@ Das Kernmodell ist die **Lerneinheit** (_Lesson_), die aus mehreren **Lernkarten
 - **Tabelle `User`:** ID (PK), E-Mail, Abo-Status (Free/Premium), `Upstash_RateLimit_ID`.
 - **Tabelle `Lesson`:** ID (PK), `User_ID` (FK), `Topic` (Text), `Lesson_Type` (Micro-Dose/Deep Dive), `Created_At`, `Status` (Pending/Completed).
 - **Tabelle `Flashcard`:** ID (PK), `Lesson_ID` (FK), `Question` (Text), `Thesys_JSON` (**JSONB** für die visuelle Darstellung), `Is_Learned` (Boolean).
-- **Tabelle `Payment_Subscription`:** ID (PK), `User_ID` (FK), `Stripe_ID`, `Status`, `Plan_Type`.
+- **Tabelle `Payment_Subscription`:** ID (PK), `User_ID` (FK), `LemonSqueezy_Customer_ID`, `LemonSqueezy_Order_ID`, `Status`, `Plan_Type`, `Variant_ID`.
 
 ---
 
@@ -138,7 +138,7 @@ Das Kernmodell ist die **Lerneinheit** (_Lesson_), die aus mehreren **Lernkarten
 1. **Rate Limiting:** Integration von **Upstash** zur Begrenzung der kostenlosen Anfragen (Prüfung innerhalb der `/api/trigger-lesson` Route).
    - Free-Tier: 5 Micro-Doses pro Tag
    - Premium: Unlimitiert + Deep Dive Zugang
-2. **Zahlungen:** Integration von **Stripe** zur Verwaltung des Premium-Abonnements.
+2. **Zahlungen:** Integration von **LemonSqueezy** zur Verwaltung des Premium-Abonnements.
    - Monthly Plan: €9.99/Monat
    - Yearly Plan: €99/Jahr (17% Rabatt)
 3. **Premium-Feature:** Freischaltung des **Deep Dive** (10-15 Karten) Modus für bezahlte Nutzer in der API Route (via OpenAI o4-mini-deep-research).
@@ -219,13 +219,13 @@ Die KI wählt intelligent zwischen verschiedenen Visualisierungstypen:
 
 ### In Planung
 
-- 📋 **Phase 2:** Monetarisierung (Stripe + Upstash Rate Limiting)
+- 📋 **Phase 2:** Monetarisierung (LemonSqueezy + Upstash Rate Limiting)
 - 🚀 **Phase 3:** Erweiterte Optimierung (Asynchrone Verarbeitung, E-Mail-Benachrichtigungen)
 
 ### Nächste Schritte
 
 1. **Upstash Redis Integration** für Rate Limiting (Free-Tier: 5 Micro-Doses/Tag)
-2. **Stripe-Integration** für Premium-Abonnements (€9.99/Monat, €99/Jahr)
+2. **LemonSqueezy-Integration** für Premium-Abonnements (€9.99/Monat, €99/Jahr)
 3. **Deep Dive-Feature** für Premium-Nutzer freischalten (10-15 Karten mit o4-mini-deep-research)
 4. **E-Mail-Benachrichtigungen** bei Lesson-Completion (Resend)
 
