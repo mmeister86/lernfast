@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/lib/auth-client";
 import { TTSPlayer } from "./tts-player";
+import { DialogMessage } from "@/app/lesson/[id]/actions/helper-components";
 
 interface DialogPhaseProps {
   lessonId: string;
