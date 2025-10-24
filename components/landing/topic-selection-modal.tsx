@@ -51,6 +51,15 @@ export function TopicSelectionModal({
           <p className="text-base font-medium text-black/80 mt-2">
             Wähle einen Aspekt, der dich besonders interessiert
           </p>
+
+          {/* Subtile 3-Phasen-Info */}
+          <div className="mt-3 flex items-left gap-2 justify-start text-sm font-medium text-black/60">
+            <span>💬 Dialog</span>
+            <span>→</span>
+            <span>📖 Story</span>
+            <span>→</span>
+            <span>🎯 Quiz</span>
+          </div>
         </div>
 
         {/* Suggestions Grid */}
@@ -69,6 +78,11 @@ export function TopicSelectionModal({
                     : "bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]]"
                 )}
               >
+                {/* Badge für Lesson Type */}
+                <div className="absolute top-3 right-3 bg-[#FFC667] text-black px-3 py-1 rounded-[15px] text-xs font-extrabold border-2 border-black">
+                  ⚡ 3-5 Kapitel
+                </div>
+
                 {/* Emoji Header */}
                 <div className="text-5xl mb-4">{suggestion.emoji}</div>
 
@@ -96,7 +110,7 @@ export function TopicSelectionModal({
         {/* Footer */}
         <div className="border-t-4 border-black bg-gray-50 p-4 text-center">
           <p className="text-sm font-medium text-black/60">
-            Tipp: Du kannst später jederzeit neue Lerneinheiten erstellen 🎓
+            Nach der Auswahl startest du mit dem interaktiven Dialog 💬
           </p>
         </div>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { HamsterSpinner } from "@/components/ui/hamster-spinner";
+import { EspressoLoader } from "@/components/espresso";
 import { cn } from "@/lib/utils";
 
 export type LoadingPhase =
@@ -20,28 +20,28 @@ interface LoadingModalProps {
  */
 const phaseMessages: Record<LoadingPhase, string[]> = {
   suggesting: [
-    "Hamster sucht passende Themen...",
-    "🐹 Hmm, welche Aspekte könnten interessant sein?",
+    "Espresso-Maschine sucht passende Themen...",
+    "☕ Hmm, welche Aspekte könnten interessant sein?",
     "Themenvielfalt wird durchforstet...",
     "Kreative Vorschläge werden entwickelt...",
     "💡 Gleich hast du eine tolle Auswahl!",
   ],
   analyzing: [
-    "Das Gehirn denkt intensiv nach...",
+    "💬 Bereite interaktiven Dialog vor...",
     "🧠 Hmm, sehr interessant!",
     "Neuronale Verbindungen werden geknüpft...",
     "Wissen wird analysiert und sortiert...",
     "💭 Aha! Das wird genial!",
   ],
   researching: [
-    "Hamster recherchiert fleißig...",
+    "📚 Recherchiere für Story & Quiz...",
     "📚 Fakten werden gesammelt!",
     "Tief in der Wissensdatenbank graben...",
     "Spannende Details werden entdeckt!",
     "🔬 Qualitätsrecherche läuft!",
   ],
   preparing: [
-    "Bereite deinen Dialog vor...",
+    "✅ Gleich geht's los mit der Dialog-Phase!",
     "💬 Gleich geht's los mit dem Chat!",
     "Fragen werden vorbereitet...",
     "✨ Der Dialog startet in wenigen Sekunden!",
@@ -92,19 +92,19 @@ export function LoadingModal({ isOpen, phase }: LoadingModalProps) {
 
       {/* Content Container */}
       <div className="relative z-10 flex flex-col items-center justify-center px-4">
-        {/* Card mit Hamster und Text */}
+        {/* Card mit Espresso und Text */}
         <div
           className={cn(
             "bg-white rounded-[15px] border-4 border-black",
             "shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]",
             "p-8 md:p-12",
-            "max-w-md w-full",
+            "max-w-lg w-full min-h-[500px]",
             "flex flex-col items-center gap-8"
           )}
         >
-          {/* Gehirn Animation */}
-          <div className="w-full flex justify-center">
-            <HamsterSpinner />
+          {/* Espresso Animation */}
+          <div className="w-full h-[280px] flex justify-center items-center overflow-visible">
+            <EspressoLoader />
           </div>
 
           {/* Phase Text */}
