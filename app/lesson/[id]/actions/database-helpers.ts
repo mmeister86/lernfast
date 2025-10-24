@@ -52,17 +52,37 @@ export async function updateDialogScore(
 export async function updatePhase(lessonId: string, phase: string) {
   const supabase = createServiceClient();
 
-  await supabase
+  // Schritt 1: Update DB mit Fehlerbehandlung
+  const { error } = await supabase
     .from("lesson")
     .update({ current_phase: phase })
     .eq("id", lessonId);
 
-  // NEU: Sofortiger Redirect nach Phase-Update (Mobile-Safe)
-  // Next.js 15 redirect() ist zuverlässiger als router.refresh() auf Mobile
-  if (phase === "story" || phase === "quiz" || phase === "completed") {
-    await invalidateLessonCache(lessonId);
-    redirect(`/lesson/${lessonId}`);
+  if (error) {
+    console.error("❌ Failed to update phase:", error);
+    throw new Error(`Phase update failed: ${error.message}`);
   }
+
+  // Schritt 2: Read-after-Write Verifizierung (wichtig für Race Condition!)
+  // Garantiert dass Phase wirklich in DB geschrieben wurde, bevor Caller weiter macht
+  const { data: verifyData } = await supabase
+    .from("lesson")
+    .select("current_phase")
+    .eq("id", lessonId)
+    .single();
+
+  if (verifyData?.current_phase !== phase) {
+    console.warn("⚠️ Phase write verification failed, retrying...");
+    // Retry einmal mit kurzem Delay
+    await supabase
+      .from("lesson")
+      .update({ current_phase: phase })
+      .eq("id", lessonId);
+    await new Promise((resolve) => setTimeout(resolve, 100)); // 100ms warten
+  }
+
+  console.log(`✅ Phase updated successfully to: ${phase}`);
+  // WICHTIG: KEIN redirect() hier! Caller entscheidet über Navigation-Timing
 }
 
 export async function updateQuizScore(

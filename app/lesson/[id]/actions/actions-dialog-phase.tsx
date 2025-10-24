@@ -12,6 +12,7 @@ import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import {
   DialogMessage,
   AssessmentLoading,
@@ -22,6 +23,7 @@ import {
   updatePhase,
   getResearchData,
   saveDialogMetadata,
+  invalidateLessonCache,
 } from "./database-helpers";
 import type { ResearchData } from "@/lib/lesson.types";
 
@@ -399,10 +401,18 @@ Nutze das assessKnowledge-Tool, um die Bewertung zu speichern und zur Story-Phas
             // Story/Quiz können auch ohne Metadata generiert werden (Fallback)
           }
 
-          // Wechsle automatisch zur Story-Phase
+          // Wechsle zur Story-Phase (OHNE redirect - updatePhase macht nur DB-Update)
           await updatePhase(lessonId, "story");
 
-          return (
+          // ⚠️ WICHTIG: 200ms Delay für Supabase Transaction-Commit
+          // Verhindert Race Condition zwischen DB-Write und redirect()
+          await new Promise((resolve) => setTimeout(resolve, 200));
+
+          // Invalidiere Cache NACH Phase-Update und Delay
+          await invalidateLessonCache(lessonId);
+
+          // Zeige Success-Message (User-Feedback vor Redirect)
+          yield (
             <div className="p-6 bg-gradient-to-br from-[#00D9BE] to-[#0CBCD7] border-4 border-black rounded-[15px] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
               <p className="text-2xl font-extrabold text-black mb-3">
                 ✅ Bewertung abgeschlossen!
@@ -421,10 +431,16 @@ Nutze das assessKnowledge-Tool, um die Bewertung zu speichern und zur Story-Phas
                 </p>
               </div>
               <p className="text-lg font-extrabold text-black">
-                🚀 Los geht's mit deiner Lerngeschichte!
+                🚀 Wechsle zur Story-Phase...
               </p>
             </div>
           );
+
+          // JETZT redirect (DB ist committed, Cache ist invalidiert)
+          redirect(`/lesson/${lessonId}`);
+
+          // Dieser Code wird nie erreicht (redirect wirft Exception)
+          return <div>Redirecting...</div>;
         },
       },
     },
