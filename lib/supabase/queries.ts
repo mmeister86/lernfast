@@ -40,14 +40,18 @@ export const getCachedLessons = unstable_cache(
       return { data: null, error };
     }
 
-    // Transformiere Daten: Extrahiere Flashcard-Count
+    // Transformiere Daten: Extrahiere Flashcard-Count + Interactive Learning Felder
     const lessons: LessonWithCount[] =
       data?.map((lesson: any) => ({
         id: lesson.id,
         user_id: lesson.user_id,
         topic: lesson.topic,
+        refined_topic: lesson.refined_topic,
         lesson_type: lesson.lesson_type,
         status: lesson.status,
+        current_phase: lesson.current_phase,
+        research_data: lesson.research_data,
+        dialog_history: lesson.dialog_history,
         created_at: lesson.created_at,
         completed_at: lesson.completed_at,
         flashcard_count: lesson.flashcard?.[0]?.count || 0,

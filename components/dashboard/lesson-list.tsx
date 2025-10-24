@@ -58,9 +58,17 @@ export function LessonList({
 
   const filteredLessons = lessons.filter((lesson) => {
     if (filter === "all") return true;
-    if (filter === "completed") return lesson.status === "completed";
-    if (filter === "processing")
-      return lesson.status === "processing" || lesson.status === "pending";
+    if (filter === "completed")
+      return scores[lesson.id] !== null && scores[lesson.id] !== undefined;
+    if (filter === "processing") {
+      // Interactive Learning: current_phase vorhanden, aber kein Score
+      if (lesson.current_phase && !scores[lesson.id]) return true;
+      // Legacy: processing/pending ohne current_phase
+      return (
+        !lesson.current_phase &&
+        (lesson.status === "processing" || lesson.status === "pending")
+      );
+    }
     return true;
   });
 
@@ -87,7 +95,12 @@ export function LessonList({
           onClick={() => setFilter("completed")}
         >
           Abgeschlossen (
-          {lessons.filter((l) => l.status === "completed").length})
+          {
+            lessons.filter(
+              (l) => scores[l.id] !== null && scores[l.id] !== undefined
+            ).length
+          }
+          )
         </Button>
         <Button
           variant={filter === "processing" ? "default" : "neutral"}
@@ -95,9 +108,15 @@ export function LessonList({
         >
           In Bearbeitung (
           {
-            lessons.filter(
-              (l) => l.status === "processing" || l.status === "pending"
-            ).length
+            lessons.filter((l) => {
+              // Interactive Learning: current_phase vorhanden, aber kein Score
+              if (l.current_phase && !scores[l.id]) return true;
+              // Legacy: processing/pending ohne current_phase
+              return (
+                !l.current_phase &&
+                (l.status === "processing" || l.status === "pending")
+              );
+            }).length
           }
           )
         </Button>

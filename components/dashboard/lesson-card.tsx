@@ -62,6 +62,29 @@ const STATUS_CONFIG = {
   },
 };
 
+const PHASE_CONFIG = {
+  dialog: {
+    label: "Dialog-Phase",
+    icon: "📝",
+    color: "bg-[#FFC667] text-black border-black",
+  },
+  story: {
+    label: "Story-Phase",
+    icon: "📖",
+    color: "bg-[#00D9BE] text-black border-black",
+  },
+  quiz: {
+    label: "Quiz-Phase",
+    icon: "🎯",
+    color: "bg-[#662CB7] text-white border-black",
+  },
+  completed: {
+    label: "Abgeschlossen",
+    icon: "✅",
+    color: "bg-[#00D9BE] text-black border-black",
+  },
+};
+
 const TYPE_CONFIG = {
   micro_dose: {
     label: "Micro Dose",
@@ -75,7 +98,6 @@ const TYPE_CONFIG = {
 
 export function LessonCard({ lesson, score, onDelete }: LessonCardProps) {
   const [isDeleting, setIsDeleting] = useState(false);
-  const statusConfig = STATUS_CONFIG[lesson.status];
   const typeConfig = TYPE_CONFIG[lesson.lesson_type];
 
   const timeAgo = formatDistanceToNow(new Date(lesson.created_at), {
@@ -84,7 +106,32 @@ export function LessonCard({ lesson, score, onDelete }: LessonCardProps) {
   });
 
   // Prüfe ob Interactive Learning (hat current_phase)
-  const isInteractiveLearning = !!(lesson as any).current_phase;
+  const isInteractiveLearning = !!lesson.current_phase;
+
+  // Status-Berechnung: Nur "Abgeschlossen" wenn Score existiert (Quiz beendet)
+  const isCompleted = !!score;
+
+  // Bestimme den tatsächlichen Status basierend auf Interactive Learning
+  let actualStatus: keyof typeof STATUS_CONFIG;
+  if (isCompleted) {
+    actualStatus = "completed";
+  } else if (lesson.status === "failed") {
+    actualStatus = "failed";
+  } else if (lesson.status === "pending") {
+    actualStatus = "pending";
+  } else if (lesson.status === "processing") {
+    actualStatus = "processing";
+  } else {
+    // lesson.status === "completed" aber kein Score = Interactive Learning in Progress
+    actualStatus = "processing";
+  }
+
+  const statusConfig = STATUS_CONFIG[actualStatus];
+
+  // Phase-Config für Interactive Learning
+  const phaseConfig = lesson.current_phase
+    ? PHASE_CONFIG[lesson.current_phase]
+    : null;
 
   const handleDelete = async () => {
     if (!onDelete) return;
@@ -127,19 +174,16 @@ export function LessonCard({ lesson, score, onDelete }: LessonCardProps) {
       </CardHeader>
 
       <CardContent>
-        {lesson.status === "completed" && !score && (
+        {/* Phase-Anzeige für Interactive Learning */}
+        {isInteractiveLearning && !isCompleted && phaseConfig && (
           <div className="flex items-center gap-2 text-sm">
-            <span className="font-heading text-main text-lg">
-              {lesson.flashcard_count}
-            </span>
-            <span className="text-foreground/70">
-              {lesson.flashcard_count === 1 ? "Flashcard" : "Flashcards"}
-            </span>
+            <span className="text-2xl">{phaseConfig.icon}</span>
+            <span className="font-heading text-lg">{phaseConfig.label}</span>
           </div>
         )}
 
         {/* Score-Anzeige für Interactive Learning */}
-        {lesson.status === "completed" && score && (
+        {isCompleted && score && (
           <div className="space-y-3">
             {/* Haupt-Score: Quiz */}
             <div className="flex items-center gap-4">
@@ -194,10 +238,16 @@ export function LessonCard({ lesson, score, onDelete }: LessonCardProps) {
       </CardContent>
 
       <CardFooter className="flex gap-2">
-        {lesson.status === "completed" ? (
+        {isCompleted ? (
+          <Link href={`/lesson/${lesson.id}`} className="flex-1">
+            <Button className="w-full">Ergebnisse ansehen</Button>
+          </Link>
+        ) : isInteractiveLearning && lesson.current_phase ? (
           <Link href={`/lesson/${lesson.id}`} className="flex-1">
             <Button className="w-full">
-              {isInteractiveLearning ? "Lernen starten" : "Flashcards ansehen"}
+              {lesson.current_phase === "dialog" && "Dialogphase fortsetzen"}
+              {lesson.current_phase === "story" && "Story-Phase fortsetzen"}
+              {lesson.current_phase === "quiz" && "Quiz starten"}
             </Button>
           </Link>
         ) : lesson.status === "failed" ? (
