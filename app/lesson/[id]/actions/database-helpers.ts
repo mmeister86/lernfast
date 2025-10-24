@@ -2,6 +2,7 @@
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { revalidateTag, revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import type { ResearchData } from "@/lib/lesson.types";
 import type { LessonScoreMetadata, ConversationEntry } from "@/lib/score.types";
 
@@ -21,6 +22,7 @@ export async function invalidateLessonCache(lessonId: string) {
   revalidateTag("lessons"); // Invalidiert Dashboard-Liste
   revalidatePath("/dashboard"); // Invalidiert Dashboard-Page
   revalidatePath(`/lesson/${lessonId}`); // Invalidiert Lesson-Page
+  revalidatePath("/", "layout"); // NEU: Globaler Layout-Cache für Mobile-Browser
 }
 
 // ============================================
@@ -55,7 +57,12 @@ export async function updatePhase(lessonId: string, phase: string) {
     .update({ current_phase: phase })
     .eq("id", lessonId);
 
-  // Cache-Invalidierung erfolgt später via invalidateLessonCache()
+  // NEU: Sofortiger Redirect nach Phase-Update (Mobile-Safe)
+  // Next.js 15 redirect() ist zuverlässiger als router.refresh() auf Mobile
+  if (phase === "story" || phase === "quiz" || phase === "completed") {
+    await invalidateLessonCache(lessonId);
+    redirect(`/lesson/${lessonId}`);
+  }
 }
 
 export async function updateQuizScore(

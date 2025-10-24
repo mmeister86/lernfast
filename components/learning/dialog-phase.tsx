@@ -176,7 +176,33 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
 
         // Invalidiere Cache nach Dialog-Abschluss
         await invalidateLessonCache(lessonId);
-        router.refresh(); // Aktualisiere UI
+
+        // NEU: Client-seitiger Fallback-Redirect für Mobile-Browser
+        // Falls server-seitiger redirect() nicht funktioniert, force Redirect nach 3s
+        // Nur auf mobilen Geräten aktivieren (Desktop funktioniert mit server redirect)
+        const isMobile =
+          /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            navigator.userAgent
+          );
+        if (isMobile) {
+          setTimeout(() => {
+            console.log("🔄 Mobile fallback: Force redirect to story phase");
+            window.location.href = `/lesson/${lessonId}`;
+          }, 3000);
+        }
+
+        // Zeige Loading-Message während Transition
+        setMessages((prev) => [
+          ...prev,
+          <div
+            key="transitioning"
+            className="p-4 bg-[#FFC667] border-4 border-black rounded-[15px]"
+          >
+            <p className="text-lg font-extrabold text-black">
+              🚀 Lade Story-Phase... (falls nichts passiert, warte 3 Sekunden)
+            </p>
+          </div>,
+        ]);
       } else {
         // Normale Dialog-Fortsetzung
         const { continueDialog, saveDialogMessage } = await import(
