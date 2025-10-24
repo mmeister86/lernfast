@@ -5,9 +5,60 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { revalidateTag, revalidatePath } from "next/cache";
 import { getCachedUserProfile } from "@/lib/supabase/queries";
 import OpenAI from "openai";
+import { generateObject } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { z } from "zod";
+import type { ResearchData } from "@/lib/lesson.types";
 
 /**
- * POST /api/trigger-lesson (NEUE VERSION - Interactive Learning)
+ * Helper-Funktion: Light Research für schnellen Dialog-Start
+ * Generiert nur die essentiellen Daten für kontextbezogene Dialog-Fragen
+ */
+async function generateLightResearch(
+  topic: string,
+  profileContext: any,
+  lessonType: "micro_dose" | "deep_dive"
+): Promise<ResearchData> {
+  const model = process.env.OPENAI_SELECTION_MODEL || "gpt-4o-mini";
+
+  const { object } = await generateObject({
+    model: openai(model),
+    schema: z.object({
+      topic: z.string(),
+      facts: z.array(z.string()).length(3), // Nur 3 Facts
+      concepts: z
+        .array(
+          z.object({
+            name: z.string(),
+            description: z.string(),
+            relationships: z.array(z.string()), // Beziehungen zu anderen Konzepten
+          })
+        )
+        .length(3), // Nur 3 Konzepte
+      keyTakeaways: z.array(z.string()).length(2), // Nur 2 Takeaways
+    }),
+    prompt: `Erstelle eine KURZE Recherche zu "${topic}" mit:
+- 3 wichtigsten Facts
+- 3 Kern-Konzepten
+- 2 Key Takeaways
+
+Level: ${profileContext.experienceLevel}
+Ziel: Schnelle Basis für Dialog-Fragen (nicht für Story!)
+
+Antworte im JSON-Format.`,
+  });
+
+  return {
+    topic: object.topic,
+    facts: object.facts,
+    concepts: object.concepts,
+    examples: [], // Wird von Full Research gefüllt
+    keyTakeaways: object.keyTakeaways,
+  };
+}
+
+/**
+ * POST /api/trigger-lesson (OPTIMIERTE VERSION - Light Research + Background Full Research)
  *
  * Erstellt eine neue Interactive Learning Lesson mit 3 Phasen:
  * 1. Dialog-Phase (initial - wird live generiert)
@@ -73,7 +124,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. DATENBANK: Erstelle Lesson-Eintrag
+    // 4. DATENBANK: Erstelle Lesson-Eintrag (ohne Research)
     const supabase = createServiceClient();
 
     const { data: lesson, error: dbError } = await supabase
@@ -83,7 +134,7 @@ export async function POST(request: NextRequest) {
         topic: topic.trim(),
         refined_topic: refinedTopic || null,
         lesson_type: lessonType,
-        status: "pending",
+        status: "processing", // ← WICHTIG: Nicht "completed" - wird nach Light Research gesetzt
         current_phase: "dialog", // Startet mit Dialog-Phase
       })
       .select()
@@ -97,131 +148,73 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. KI-GENERIERUNG: NUR Research-Phase (Story + Quiz werden SPÄTER LIVE generiert)
-    // Dialog wird live generiert in der Lesson Page via streamUI
-    // Story wird nach Dialog generiert (während User bereits im Dialog ist!)
-    // Quiz wird nach Story generiert (mit Story + Dialog-Context)
+    // 5. LIGHT RESEARCH: Schnelle Basis für Dialog-Fragen (2-3s statt 15s)
     try {
-      await supabase
-        .from("lesson")
-        .update({ status: "processing" })
-        .eq("id", lesson.id);
-
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-      // ============================================
-      // STAGE 1: RESEARCH - Fakten & Konzepte sammeln
-      // ============================================
-      // Diese Daten werden in lesson.research_data gespeichert
-      // und später für Dialog, Story und Quiz verwendet
-
-      const researchModel =
-        lessonType === "micro_dose"
-          ? process.env.OPENAI_MICRO_DOSE_MODEL || "gpt-4.1-mini"
-          : process.env.OPENAI_DEEP_DIVE_MODEL || "o4-mini-deep-research";
-
-      // Für spätere Live-Generierung (in actions-story-phase.tsx und actions-quiz-phase.tsx)
-      const chapterCount = lessonType === "micro_dose" ? 3 : 5;
-      const questionCount = lessonType === "micro_dose" ? 5 : 7;
-
       console.log(
-        `🔬 Starting Research Phase for topic: "${targetTopic}" (${lessonType})`
-      );
-      console.log(
-        `📚 Lesson will have ${chapterCount} chapters and ${questionCount} quiz questions (generated LIVE during Dialog & after Story)`
+        `⚡ Starting LIGHT research for topic: "${targetTopic}" (${lessonType})`
       );
 
-      const researchSystemPrompt = `Du bist ein Recherche-Experte für interaktive Lerngeschichten.
+      const lightResearch = await generateLightResearch(
+        targetTopic,
+        profileContext,
+        lessonType
+      );
 
-AUFGABE:
-Recherchiere umfassend zum Thema und sammle Material für:
-1. Eine fesselnde ${chapterCount}-teilige Lerngeschichte
-2. Ein ${questionCount}-Fragen Quiz zur Wissensabfrage
-
-**PERSONALISIERUNG:**
-- Erfahrungslevel: ${profileContext.experienceLevel}
-- Schwierigkeitsgrad: ${profileContext.preferredDifficulty}
-${profileContext.age ? `- Alter: ${profileContext.age} Jahre` : ""}
-${profileContext.learningGoals ? `- Lernziele: ${profileContext.learningGoals}` : ""}
-
-**OUTPUT-FORMAT (JSON):**
-{
-  "topic": "Thema",
-  "facts": ["Fakt 1", "Fakt 2", ...],
-  "concepts": [
-    {
-      "name": "Konzept-Name",
-      "description": "Erklärung",
-      "relationships": ["Beziehung zu anderen Konzepten"]
-    }
-  ],
-  "examples": ["Beispiel 1", "Beispiel 2", ...],
-  "keyTakeaways": ["Hauptpunkt 1", "Hauptpunkt 2", ...]
-}`;
-
-      const researchCompletion = await openai.chat.completions.create({
-        model: researchModel,
-        messages: [
-          { role: "system", content: researchSystemPrompt },
-          {
-            role: "user",
-            content: `Recherchiere umfassend zum Thema: ${targetTopic}`,
-          },
-        ],
-        response_format: { type: "json_object" },
+      console.log("📊 Light Research Data:", {
+        factsCount: lightResearch.facts?.length || 0,
+        conceptsCount: lightResearch.concepts?.length || 0,
+        keyTakeawaysCount: lightResearch.keyTakeaways?.length || 0,
       });
 
-      const researchData = JSON.parse(
-        researchCompletion.choices[0].message.content || "{}"
-      );
-
-      console.log(
-        `✅ Research completed for topic: ${targetTopic} (${researchModel})`
-      );
-      console.log("📊 Research Data:", {
-        factsCount: researchData.facts?.length || 0,
-        conceptsCount: researchData.concepts?.length || 0,
-        examplesCount: researchData.examples?.length || 0,
-        keyTakeawaysCount: researchData.keyTakeaways?.length || 0,
-      });
-
-      // ============================================
-      // SPEICHERE RESEARCH-DATEN IN DB
-      // ============================================
-      // ✅ NEU: Story wird NICHT mehr hier generiert!
-      // Story-Generierung erfolgt LAZY wenn User zur Story-Phase wechselt
-      // (in StoryGeneratorWrapper → actions-story-phase.tsx)
-
+      // Speichere Light Research in DB
       await supabase
         .from("lesson")
         .update({
-          research_data: researchData, // Speichere für spätere Verwendung
-          status: "completed", // Lesson ist bereit für Dialog-Phase
+          research_data: lightResearch,
+          status: "completed", // Jetzt bereit für Dialog-Phase
           completed_at: new Date().toISOString(),
         })
         .eq("id", lesson.id);
 
       console.log(
-        `✅ Lesson created successfully: ${lesson.id} (Research-Only Mode - Story wird später generiert)`
+        `✅ Light research completed for lesson: ${lesson.id} - Dialog kann starten!`
       );
 
       // ============================================
-      // OPTIMIERUNG: LAZY STORY GENERATION
+      // STEP 3: FULL RESEARCH IM BACKGROUND (Fire & Forget)
       // ============================================
-      // Story wird NICHT mehr hier generiert, sondern:
-      // 1. User startet Dialog-Phase (SOFORT nach Research - 2-3s statt 15-30s!)
-      // 2. Dialog läuft... (User beantwortet Fragen)
-      // 3. Dialog endet → Phase-Wechsel zu 'story'
-      // 4. StoryGeneratorWrapper prüft: Kapitel vorhanden?
-      //    - NEIN → generateStory() aufrufen (im Hintergrund während User wartet)
-      //    - JA → Kapitel direkt anzeigen
-      //
-      // Vorteil:
-      // - User kommt SOFORT in den Dialog (keine Wartezeit!)
-      // - Story wird während Dialog generiert (User merkt nichts)
-      // - Maximal personalisiert basierend auf Dialog-Erkenntnissen
+      // Läuft parallel während User im Dialog ist
+      // Überschreibt Light Research mit vollständigen Daten
+      try {
+        const baseUrl =
+          process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "http://localhost:3000";
+        fetch(`${baseUrl}/api/generate-full-research`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lessonId: lesson.id,
+            topic: targetTopic,
+            lessonType,
+            profileContext,
+          }),
+        }).catch((err) => {
+          console.warn("⚠️ Full research background trigger failed:", err);
+          // Silent failure - Story wird später mit Light Research Fallback generiert
+        });
+
+        console.log(
+          "🚀 Full research background trigger sent for lesson:",
+          lesson.id
+        );
+      } catch (error) {
+        console.error(
+          "⚠️ Exception while triggering background full research:",
+          error
+        );
+        // Weitermachen - Story wird später mit Light Research Fallback generiert
+      }
     } catch (error) {
-      console.error("Content generation error:", error);
+      console.error("Light research generation error:", error);
 
       // Status auf 'failed' setzen
       await supabase
@@ -231,7 +224,8 @@ ${profileContext.learningGoals ? `- Lernziele: ${profileContext.learningGoals}` 
 
       return NextResponse.json(
         {
-          error: "Fehler bei der KI-Generierung. Bitte versuche es erneut.",
+          error:
+            "Fehler bei der Light Research-Generierung. Bitte versuche es erneut.",
           details:
             process.env.NODE_ENV === "development"
               ? error instanceof Error
@@ -247,14 +241,14 @@ ${profileContext.learningGoals ? `- Lernziele: ${profileContext.learningGoals}` 
     revalidateTag("lessons");
     revalidatePath("/dashboard");
 
-    // 7. ERFOLGREICHE RESPONSE
+    // 6. ERFOLGREICHE RESPONSE
     return NextResponse.json(
       {
         success: true,
         lessonId: lesson.id,
         status: "completed",
         message:
-          "Deine interaktive Lerneinheit wurde erfolgreich erstellt! Starte jetzt mit dem Dialog.",
+          "Deine Lerneinheit ist bereit! Dialog startet sofort - Story wird im Hintergrund vorbereitet.",
       },
       { status: 201 }
     );
@@ -266,4 +260,3 @@ ${profileContext.learningGoals ? `- Lernziele: ${profileContext.learningGoals}` 
     );
   }
 }
-

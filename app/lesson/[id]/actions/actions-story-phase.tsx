@@ -59,15 +59,28 @@ export async function generateStory(
     throw new Error("Research data is required for story generation");
   }
 
-  console.log("📊 Loaded context:", {
+  // ✅ NEU: Prüfe ob Full Research verfügbar
+  const isFullResearch =
+    researchData.examples && researchData.examples.length > 0;
+
+  if (!isFullResearch) {
+    console.warn("⚠️ Using Light Research - Full Research noch nicht fertig");
+    console.warn(
+      "   → Story wird mit reduzierter Qualität generiert (funktioniert aber)"
+    );
+  }
+
+  console.log("📊 Research Status:", {
+    type: isFullResearch ? "FULL" : "LIGHT",
     factsCount: researchData.facts?.length || 0,
     conceptsCount: researchData.concepts?.length || 0,
+    examplesCount: researchData.examples?.length || 0,
     dialogMetadata: !!dialogMetadata,
     knowledgeLevel: dialogMetadata?.knowledgeLevel || knowledgeLevel,
   });
 
   const researchContext = `
-**RESEARCH-DATEN:**
+**RESEARCH-DATEN (${isFullResearch ? "VOLLSTÄNDIG" : "LIGHT - REDUZIERT"}):**
 - Facts: ${researchData.facts?.join(" | ") || "Keine verfügbar"}
 - Konzepte: ${
     researchData.concepts
@@ -76,6 +89,12 @@ export async function generateStory(
   }
 - Beispiele: ${researchData.examples?.join(" | ") || "Keine verfügbar"}
 - Key Takeaways: ${researchData.keyTakeaways?.join(" | ") || "Keine verfügbar"}
+
+${
+  !isFullResearch
+    ? "⚠️ HINWEIS: Du arbeitest mit Light Research - weniger Details verfügbar, aber Story-Generierung ist möglich."
+    : ""
+}
 `;
 
   const dialogContext = dialogMetadata
@@ -212,10 +231,14 @@ Du MUSST für jedes Kapitel eine passende Visualisierung mit ECHTEN, SINNVOLLEN 
 
   if (!story) {
     console.error("❌ Story generation failed after all retries:", lastError);
-    throw new Error("Die Story konnte nach mehreren Versuchen nicht erstellt werden.");
+    throw new Error(
+      "Die Story konnte nach mehreren Versuchen nicht erstellt werden."
+    );
   }
 
-  console.log(`✅ Story object generated with ${story.chapters.length} chapters.`);
+  console.log(
+    `✅ Story object generated with ${story.chapters.length} chapters.`
+  );
 
   // Audio wird on-demand generiert (kein proaktives Caching wegen 2MB Next.js Limit)
   // Siehe docs/TTS-SUPABASE-STORAGE.md für langfristige Lösung mit Supabase Storage
@@ -225,26 +248,36 @@ Du MUSST für jedes Kapitel eine passende Visualisierung mit ECHTEN, SINNVOLLEN 
 
     if (!Array.isArray(finalChartData) || finalChartData.length < 3) {
       console.warn(
-        `⚠️ LLM returned invalid chartData for chapter ${index + 1}. Using fallback.`
+        `⚠️ LLM returned invalid chartData for chapter ${
+          index + 1
+        }. Using fallback.`
       );
       switch (chapter.visualizationType) {
         case "timeline":
           finalChartData = [
-            { name: "Phase 1", value: 25 }, { name: "Phase 2", value: 55 },
-            { name: "Phase 3", value: 80 }, { name: "Phase 4", value: 100 },
+            { name: "Phase 1", value: 25 },
+            { name: "Phase 2", value: 55 },
+            { name: "Phase 3", value: 80 },
+            { name: "Phase 4", value: 100 },
           ];
           break;
         default:
           finalChartData = [
-            { name: "A", value: 75 }, { name: "B", value: 60 },
-            { name: "C", value: 85 }, { name: "D", value: 70 },
+            { name: "A", value: 75 },
+            { name: "B", value: 60 },
+            { name: "C", value: 85 },
+            { name: "D", value: 70 },
           ];
       }
     }
 
     const validatedChartData = finalChartData.map((item, itemIndex) => ({
-      name: item.name && typeof item.name === 'string' ? item.name : `Punkt ${itemIndex + 1}`,
-      value: typeof item.value === 'number' && !isNaN(item.value) ? item.value : 50,
+      name:
+        item.name && typeof item.name === "string"
+          ? item.name
+          : `Punkt ${itemIndex + 1}`,
+      value:
+        typeof item.value === "number" && !isNaN(item.value) ? item.value : 50,
     }));
 
     return {
