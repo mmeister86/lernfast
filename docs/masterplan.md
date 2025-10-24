@@ -216,6 +216,7 @@ Die KI wählt intelligent zwischen verschiedenen Visualisierungstypen:
 - ✅ **Phase 0:** Setup & Auth (Better-Auth + Better-Auth-Harmony)
 - ✅ **Phase 1:** MVP mit intelligenten Visualisierungen (Mermaid.js + Thesys)
 - ✅ **Phase 1.5:** Performance-Optimierung (Next.js 15 Caching - 86% schneller)
+- ✅ **Phase 1.5+:** Dialog-Persistierung + Background Story Generation (V1.3)
 
 ### In Planung
 
@@ -228,6 +229,14 @@ Die KI wählt intelligent zwischen verschiedenen Visualisierungstypen:
 2. **LemonSqueezy-Integration** für Premium-Abonnements (€9.99/Monat, €99/Jahr)
 3. **Deep Dive-Feature** für Premium-Nutzer freischalten (10-15 Karten mit o4-mini-deep-research)
 4. **E-Mail-Benachrichtigungen** bei Lesson-Completion (Resend)
+
+### V1.3 - Neue Architektur-Patterns
+
+- **Fire & Forget Pattern**: Background Story Generation während Dialog
+- **Light Research**: 2-3s statt 15s Wartezeit nach Topic-Auswahl
+- **Dialog-Persistierung**: `dialog_history` Spalte für bessere UX
+- **RLS Policy-Fixes**: Service Role Client für robuste DB-Operationen
+- **D3.js → Recharts**: Bundle-Size Reduktion um 1MB
 
 ### Technologie-Highlights
 
@@ -247,3 +256,10 @@ Die KI wählt intelligent zwischen verschiedenen Visualisierungstypen:
 - **Lesson-Viewer:** 1500ms → 200ms (**87% Reduktion**)
 - **Profilseite:** 2000ms → 250ms (**88% Reduktion**)
 - **Durchschnitt:** 1833ms → 250ms (**86% schneller**)
+
+### Performance-Metriken (Phase 1.5+ - V1.3)
+
+- **Initial-Ladezeit:** 15-30s → 2-3s (**83-90% Reduktion**)
+- **Dialog-Start:** Sofortiger Start (keine Wartezeit)
+- **Story-Übergang:** Nahtlos (Background Generation)
+- **Bundle-Size:** -1MB (D3.js → Recharts Migration)

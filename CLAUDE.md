@@ -121,7 +121,7 @@ lib/
 
 ---
 
-## KI-Pipeline (Interactive Learning V1.2)
+## KI-Pipeline (Interactive Learning V1.3)
 
 ```
 User Input → Optional: /api/suggest-topics (3 Vorschläge)
@@ -130,21 +130,24 @@ POST /api/trigger-lesson { topic, lessonType }
   ↓
 1. Auth Check
 2. Create Lesson (status='pending', current_phase='dialog')
-3. Research-Phase (OPENAI_MICRO_DOSE_MODEL / OPENAI_DEEP_DIVE_MODEL)
-4. Content-Gen (OPENAI_STRUCTURE_MODEL → Story + Quiz)
-5. Store in DB (flashcard table: phase='story'/'quiz')
-6. Update status='completed'
-  ↓
-Redirect zu /lesson/[id]
+3. Light Research-Phase (2-3s statt 15s) - OPENAI_MICRO_DOSE_MODEL
+4. Update status='completed' → Redirect zu /lesson/[id]
   ↓
 Dialog-Phase 💬 (Max. 5 Antworten → dialog_score)
-  ↓
-Story-Phase 📖 (3-5 Kapitel + Recharts)
+  ↓ (Parallel: Background Story Generation via /api/generate-story-background)
+Story-Phase 📖 (3-5 Kapitel + Recharts) - bereits fertig!
   ↓
 Quiz-Phase 🎯 (5-7 Fragen → quiz_score)
   ↓
 Completion 🎉 (total_score = quiz_score)
 ```
+
+### V1.3 - Performance-Optimierungen
+
+- **Light Research**: 2-3s statt 15s Wartezeit nach Topic-Auswahl
+- **Background Story Generation**: Story wird während Dialog generiert (Fire & Forget)
+- **Nahtloser Übergang**: Dialog → Story ohne Wartezeit
+- **Full Research**: Läuft parallel via `/api/generate-full-research`
 
 ---
 
@@ -169,6 +172,14 @@ total_score = quiz_score  -- Nur Quiz zählt (0-100)
 - 3-stufige Validierung (Array/Länge/Struktur)
 - Fallback-Daten für alle 4 Chart-Typen
 - Debug-Logging auf 5 Ebenen
+
+### V1.3 - Dialog-Persistierung & Personalisierung
+
+- **Dialog-Hang-Fix**: RLS Policies für Service Role Client behoben
+- **Dialog-Persistierung**: Neue Spalte `dialog_history` in lesson Tabelle
+- **Personalisierung**: Basierend auf User-Profil (Alter, Erfahrungslevel, Sprache)
+- **5-Fragen-Limit**: System-Prompt verschärft, Tool-Calls entfernt
+- **Background Story Generation**: Fire & Forget Pattern für bessere UX
 
 ---
 
@@ -207,7 +218,7 @@ const isInteractiveLearning = !!lesson.current_phase;
 
 ## Caching-Strategie (Phase 1.5)
 
-**Performance:** 86% schneller (2000ms → 250ms Durchschnitt)
+**Performance:** 83-90% schneller (15-30s → 2-3s Initial-Ladezeit)
 
 ```typescript
 // lib/supabase/queries.ts
@@ -310,15 +321,16 @@ const { data: session } = useSession();
 
 ---
 
-**Letzte Aktualisierung:** 2025-10-17 (V1.2.1 - Robuste Visualisierungs-Validierung)
+**Letzte Aktualisierung:** 2025-10-24 (V1.3 - Dialog-Persistierung + Performance-Optimierungen)
 **Projekt-Status:** Phase 1.5 ✅ | Phase 2 (Monetarisierung) 📋
 
 **Neueste Features:**
 
-- ✅ Interactive Learning V1.2.1 (3-stufige Chart-Validierung + Fallback-Daten)
-- ✅ Vercel AI SDK v5 (Server Actions mit `streamUI`)
-- ✅ Topic Suggestions (3 verfeinerte Optionen)
-- ✅ Recharts Charts (Timeline, Comparison, Process, Concept-Map)
-- ✅ Next.js 15 Caching (86% Performance-Boost)
-- ✅ Dialog Limit (Max. 5 Antworten)
-- ✅ Vereinfachte Scores (`total_score = quiz_score`)
+- ✅ Interactive Learning V1.3 (Dialog-Persistierung + Personalisierung)
+- ✅ Background Story Generation (Fire & Forget Pattern)
+- ✅ Dialog-Hang-Fix (RLS Policies + Error Handling)
+- ✅ Light Research (83-90% schnellere Initial-Ladezeit)
+- ✅ Dashboard Status-System (Phase-Anzeige: 📝📖🎯)
+- ✅ D3.js → Recharts Migration (Bundle-Size -1MB)
+- ✅ Dialog Limit (Max. 5 Antworten + verschärfte System-Prompts)
+- ✅ Zeitzonen-Fix (TIMESTAMPTZ für alle Zeitstempel)
