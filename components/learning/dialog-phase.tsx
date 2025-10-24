@@ -179,11 +179,12 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
 
         // ⚠️ WICHTIG: Client-seitiger Fallback-Redirect (Backup-Lösung)
         // Falls server-seitiger redirect() fehlschlägt (Network-Issues, Server-Errors)
-        // → Force Redirect nach 2s via window.location.href (umgeht Next.js Cache)
+        // → Force Redirect nach 4s via window.location.href (umgeht Next.js Cache)
+        // 4s weil Server-Redirect jetzt 3s braucht + 1s Puffer
         setTimeout(() => {
           console.log("🔄 Client fallback: Forcing redirect to story phase");
           window.location.href = `/lesson/${lessonId}`;
-        }, 2000); // 2s Delay (gibt Server-Redirect Zeit, aber schnellerer Fallback)
+        }, 4000); // 4s Delay (Server-Redirect braucht 3s + 1s Puffer)
 
         // User-Feedback während Transition
         setMessages((prev) => [
@@ -193,7 +194,7 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
             className="p-4 bg-[#FFC667] border-4 border-black rounded-[15px]"
           >
             <p className="text-lg font-extrabold text-black">
-              🚀 Wechsle zur Story-Phase...
+              🚀 Wechsle zur Story-Phase... (wird 3 Sekunden dauern)
             </p>
           </div>,
         ]);

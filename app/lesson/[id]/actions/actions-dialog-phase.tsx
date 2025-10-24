@@ -404,9 +404,10 @@ Nutze das assessKnowledge-Tool, um die Bewertung zu speichern und zur Story-Phas
           // Wechsle zur Story-Phase (OHNE redirect - updatePhase macht nur DB-Update)
           await updatePhase(lessonId, "story");
 
-          // ⚠️ WICHTIG: 200ms Delay für Supabase Transaction-Commit
+          // ⚠️ WICHTIG: 3000ms Delay für Supabase Transaction-Commit
           // Verhindert Race Condition zwischen DB-Write und redirect()
-          await new Promise((resolve) => setTimeout(resolve, 200));
+          // 200ms waren zu wenig - auch PC zeigt das Problem
+          await new Promise((resolve) => setTimeout(resolve, 3000));
 
           // Invalidiere Cache NACH Phase-Update und Delay
           await invalidateLessonCache(lessonId);
