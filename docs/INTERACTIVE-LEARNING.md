@@ -522,11 +522,95 @@ Bei Fragen oder Problemen:
 
 ---
 
+## 🔄 Dialog-Persistierung (V1.3 - 2025-10-24)
+
+### Problem gelöst
+
+Dialog-Conversation-History war nur im Client-State und ging bei Page-Reload verloren.
+
+### Lösung
+
+**Datenbank-Persistierung:**
+
+- Neue Spalte `lesson.dialog_history` (JSONB Array)
+- Speichert jede Message (User + Assistant) mit Timestamp
+- Ermöglicht Wiederaufnahme nach Page-Reload
+
+**Features:**
+
+- ✅ Automatisches Speichern nach jeder Message
+- ✅ Wiederherstellung beim Component-Mount
+- ✅ Automatisches Löschen nach Dialog-Abschluss
+- ✅ GIN-Index für schnelle Abfragen
+
+**Implementation:**
+
+- `saveDialogMessage()` - Speichert einzelne Message
+- `loadDialogHistory()` - Lädt komplette History
+- `clearDialogHistory()` - Löscht History nach Abschluss
+
+**UI-Verbesserung:**
+
+- User sieht beim Reload alle bisherigen Messages
+- Kein Verlust von bereits gegebenen Antworten
+- Nahtlose Fortsetzung des Dialogs
+
+---
+
+## 🎯 Dialog 5-Fragen-Limit + Personalisierung (V1.3 - 2025-10-24)
+
+### Problem gelöst
+
+Das LLM konnte nach der 4. User-Antwort das `assessKnowledge` Tool aufrufen und den Dialog vorzeitig beenden. User sollen aber **immer exakt 5 Fragen** beantworten.
+
+Zusätzlich: Dialog-Conversation-History war nur im Client-State und ging bei Page-Reload verloren.
+
+### Lösung
+
+**Server-Side Änderungen:**
+
+- Tool-Call aus `continueDialog()` komplett entfernt
+- System-Prompt verschärft: "EXAKT 5 FRAGEN, KEIN Tool verfügbar"
+- Personalisierung basierend auf User-Profil (Alter, Erfahrungslevel, Sprache)
+- Immer "Du" verwenden, niemals "Sie"
+
+**Dialog-Persistierung:**
+
+- Neue Spalte `lesson.dialog_history` (JSONB Array)
+- Speichert jede Message (User + Assistant) mit Timestamp
+- Ermöglicht Wiederaufnahme nach Page-Reload
+
+**Features:**
+
+- ✅ User beantwortet IMMER exakt 5 Fragen (kein vorzeitiger Abbruch)
+- ✅ Automatisches Speichern nach jeder Message
+- ✅ Wiederherstellung beim Component-Mount
+- ✅ Automatisches Löschen nach Dialog-Abschluss
+- ✅ Personalisierung basierend auf User-Profil
+- ✅ Immer "Du" verwenden, niemals "Sie"
+
+**Implementation:**
+
+- `saveDialogMessage()` - Speichert einzelne Message
+- `loadDialogHistory()` - Lädt komplette History
+- `clearDialogHistory()` - Löscht History nach Abschluss
+- Personalisierte System-Prompts in allen Dialog-Funktionen
+
+**UI-Verbesserung:**
+
+- User sieht beim Reload alle bisherigen Messages
+- Kein Verlust von bereits gegebenen Antworten
+- Nahtlose Fortsetzung des Dialogs
+- Fragen angepasst an Alter und Erfahrungslevel
+
+---
+
 ## 🔧 Robuste Visualisierungs-Validierung (V1.2.1 - 2025-10-17)
 
 ### Problem gelöst
 
 Process-Visualisierungen renderten ein graues Overlay statt echte Charts, weil:
+
 1. LLM generierte teilweise leere/invalide `chartData` Arrays
 2. Keine Validierung der LLM-Outputs vor dem Speichern
 3. ProcessChart Component hatte kein Error-Handling
@@ -536,6 +620,7 @@ Process-Visualisierungen renderten ein graues Overlay statt echte Charts, weil:
 #### 1. Verbesserter LLM-Prompt (OpenAI Best Practices)
 
 **Strukturierter Prompt nach Cookbook-Guidelines:**
+
 - Klare Beispiele für jeden Visualisierungstyp (timeline, comparison, process, concept-map)
 - Explizite Regeln: MINDESTENS 3-6 Datenpunkte, NIEMALS leere Arrays
 - Konkrete Format-Vorgaben: `{ name: "String", value: Number }`
@@ -561,6 +646,7 @@ validatedChartData.map((item) => {
 ```
 
 **Fallback-Daten für jeden Typ:**
+
 - `timeline`: 4 Phasen (25, 55, 80, 100)
 - `comparison`: 4 Optionen (75, 60, 85, 70)
 - `process`: 4 Schritte (100, 80, 60, 30)
@@ -569,6 +655,7 @@ validatedChartData.map((item) => {
 #### 3. ProcessChart Component Verbesserungen
 
 **Features in `components/learning/modern-visualization.tsx`:**
+
 - Early-Return bei leeren Daten
 - `domain={[0, 100]}` für X-Achse (fixiert Werte-Range)
 - `width={180}` für Y-Achse (mehr Platz für lange Schritt-Namen)
@@ -577,6 +664,7 @@ validatedChartData.map((item) => {
 #### 4. Debugging-Support
 
 **Console-Logging auf mehreren Ebenen:**
+
 1. `📊 createChapter Tool Called:` → Zeigt LLM-Output
 2. `⚠️ LLM returned invalid chartData` → Fallback wird aktiviert
 3. `✅ Final validated chartData:` → Zeigt finale Daten
@@ -586,10 +674,12 @@ validatedChartData.map((item) => {
 #### Impact
 
 **Vorher:**
+
 - ❌ Graues Overlay bei invaliden Daten
 - ❌ Keine Fehlerdiagnose möglich
 
 **Nachher:**
+
 - ✅ LLM wird strukturiert zu validen Daten angeleitet
 - ✅ Automatischer Fallback bei LLM-Fehler
 - ✅ Jeder Datenpunkt strukturell validiert
@@ -722,11 +812,13 @@ User fühlten sich ungerecht bewertet, da Dialog-Score (20%) ihren Gesamt-Score 
 #### Score-Berechnung
 
 **ALT:**
+
 ```
 total_score = (dialog_score × 0.2) + (story_score × 0.2) + (quiz_score × 0.6)
 ```
 
 **NEU:**
+
 ```
 total_score = quiz_score
 ```
@@ -747,11 +839,13 @@ total_score = quiz_score
 #### UI-Änderungen
 
 **Completion-Screen:**
+
 - Quiz-Score prominent als Haupt-Score angezeigt
 - Dialog als "Bonus-Info" mit gedämpftem Styling
 - Klartext: "Dies ist dein finaler Score!"
 
 **Dashboard-Cards:**
+
 - Fokus auf Quiz-Score (große Schrift, prominente Farbe)
 - Dialog optional sichtbar als kleiner Badge
 - Progress-Bar zeigt Quiz-Performance (Gradient von Purple zu Teal)
@@ -759,11 +853,13 @@ total_score = quiz_score
 #### Implementation
 
 **Datenbank-Migration:** `20251016232329_simplify_score_calculation.sql`
+
 - Trigger-Funktion `update_lesson_total_score()` vereinfacht
 - Alle bestehenden Scores automatisch neu berechnet
 - Backward-compatible (keine Breaking Changes)
 
 **Geänderte Dateien:**
+
 - `supabase/migrations/20251016232329_simplify_score_calculation.sql` (NEU)
 - `components/learning/completion-screen.tsx` (UI-Redesign)
 - `components/dashboard/lesson-card.tsx` (UI-Vereinfachung)

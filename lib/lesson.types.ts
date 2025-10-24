@@ -52,6 +52,7 @@ export interface Lesson {
   status: LessonStatus;
   current_phase?: LearningPhase; // NEU: Aktuelle Phase im interaktiven Workflow
   research_data?: ResearchData; // NEU: Research-Daten aus Stage 1
+  dialog_history?: DialogHistoryEntry[]; // NEU: Persistierte Dialog-Conversation
   created_at: string; // ISO 8601 timestamp string von Supabase
   completed_at: string | null;
 }
@@ -215,4 +216,14 @@ export interface QuizQuestion {
   correctAnswer: number;
   difficulty: "easy" | "medium" | "hard";
   explanation: string;
+}
+
+/**
+ * Dialog History Entry für Persistierung
+ * Gespeichert in lesson.dialog_history (JSONB Array)
+ */
+export interface DialogHistoryEntry {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
 }

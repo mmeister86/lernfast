@@ -98,7 +98,7 @@ export function LoadingModal({ isOpen, phase }: LoadingModalProps) {
             "bg-white rounded-[15px] border-4 border-black",
             "shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]",
             "p-8 md:p-12",
-            "max-w-lg w-full min-h-[500px]",
+            "w-[40vw] min-h-[500px]",
             "flex flex-col items-center gap-8"
           )}
         >

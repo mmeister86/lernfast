@@ -10,6 +10,8 @@ import { streamUI } from "@ai-sdk/rsc";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 import {
   DialogMessage,
   AssessmentLoading,
@@ -38,6 +40,15 @@ export async function startDialog(
 ): Promise<ReactNode> {
   const dialogModel = process.env.OPENAI_SELECTION_MODEL || "gpt-4o-mini";
 
+  // ✅ NEU: Lade User-Profil für Personalisierung
+  const session = await auth.api.getSession({ headers: await headers() });
+  const userProfile = session?.user;
+
+  // Extrahiere Profil-Daten (mit Fallbacks)
+  const userAge = userProfile?.age;
+  const userLanguage = userProfile?.language || "de";
+  const userExperience = userProfile?.experienceLevel || "beginner";
+
   // ✅ NEU: Lade Research-Daten für kontextbezogene Fragen
   const researchData = await getResearchData(lessonId);
 
@@ -46,17 +57,63 @@ export async function startDialog(
     ? `
 RESEARCH-KONTEXT:
 Du hast Zugriff auf folgende Informationen zum Thema:
-- Key Facts: ${researchData.facts?.slice(0, 3).join(", ") || "Keine Facts verfügbar"}
-- Wichtige Konzepte: ${researchData.concepts?.map((c) => c.name).slice(0, 3).join(", ") || "Keine Konzepte verfügbar"}
-- Kernpunkte: ${researchData.keyTakeaways?.slice(0, 2).join(", ") || "Keine Kernpunkte verfügbar"}
+- Key Facts: ${
+        researchData.facts?.slice(0, 3).join(", ") || "Keine Facts verfügbar"
+      }
+- Wichtige Konzepte: ${
+        researchData.concepts
+          ?.map((c) => c.name)
+          .slice(0, 3)
+          .join(", ") || "Keine Konzepte verfügbar"
+      }
+- Kernpunkte: ${
+        researchData.keyTakeaways?.slice(0, 2).join(", ") ||
+        "Keine Kernpunkte verfügbar"
+      }
 
 Nutze diese Informationen, um eine relevante Einstiegsfrage zu stellen!
 `
     : "";
 
+  // ✅ NEU: Personalisierter Context
+  const personalizedContext = `
+USER-PROFIL (Personalisierung):
+${userAge ? `- Alter: ${userAge} Jahre` : "- Alter: Nicht angegeben"}
+${
+  userExperience
+    ? `- Erfahrungslevel: ${userExperience} (passe Komplexität der Fragen an!)`
+    : ""
+}
+${
+  userLanguage !== "de"
+    ? `- Bevorzugte Sprache: ${userLanguage} (aber Dialog ist auf Deutsch)`
+    : ""
+}
+
+WICHTIG: Passe deine Fragen an Alter und Erfahrungslevel an!
+${userAge && userAge < 14 ? "- Nutze einfache, kindgerechte Sprache" : ""}
+${
+  userAge && userAge >= 18
+    ? "- Nutze anspruchsvolle, professionelle Sprache"
+    : ""
+}
+${
+  userExperience === "beginner"
+    ? "- Stelle grundlegende Fragen, erkläre Konzepte einfach"
+    : ""
+}
+${
+  userExperience === "advanced"
+    ? "- Stelle tiefergehende Fragen, nutze Fachbegriffe"
+    : ""
+}
+`;
+
   const result = await streamUI({
     model: openai(dialogModel),
     system: `Du bist ein freundlicher Lern-Coach für das Thema "${topic}".
+
+${personalizedContext}
 
 AUFGABE:
 - Stelle EINE prägnante Einstiegsfrage, um das Vorwissen des Nutzers zu ermitteln
@@ -64,6 +121,8 @@ AUFGABE:
 - Kurz und direkt (1-2 Sätze)
 - Motivierend und einladend formuliert
 - Beziehe dich auf konkrete Konzepte aus dem Research-Kontext
+- Duze den Nutzer IMMER (verwende "du", "dein", "dir")
+- Passe die Komplexität an Alter und Erfahrungslevel an
 
 ${researchContext}
 
@@ -72,7 +131,8 @@ BEISPIELE für gute Einstiegsfragen:
 - "Hast du schon einmal mit [Technologie] gearbeitet?"
 - "Welche Erfahrungen hast du bisher mit [Spezifisches Konzept] gemacht?"
 
-WICHTIG: Stelle NUR die Frage - keine Einleitung, keine Erklärungen!`,
+WICHTIG: Stelle NUR die Frage - keine Einleitung, keine Erklärungen!
+WICHTIG: IMMER "Du" verwenden, niemals "Sie"!`,
     prompt: `Stelle eine offene Einstiegsfrage zum Thema "${topic}", die sich auf die Research-Daten bezieht.`,
 
     text: async function* ({ content, done }) {
@@ -99,25 +159,76 @@ export async function continueDialog(
   const answerNum = currentAnswerCount || 1;
   const maxAns = maxAnswers || 5;
 
+  // ✅ NEU: Lade User-Profil für Personalisierung
+  const session = await auth.api.getSession({ headers: await headers() });
+  const userProfile = session?.user;
+
+  // Extrahiere Profil-Daten (mit Fallbacks)
+  const userAge = userProfile?.age;
+  const userLanguage = userProfile?.language || "de";
+  const userExperience = userProfile?.experienceLevel || "beginner";
+
+  // ✅ NEU: Personalisierter Context
+  const personalizedContext = `
+USER-PROFIL (Personalisierung):
+${userAge ? `- Alter: ${userAge} Jahre` : "- Alter: Nicht angegeben"}
+${
+  userExperience
+    ? `- Erfahrungslevel: ${userExperience} (passe Komplexität der Fragen an!)`
+    : ""
+}
+${
+  userLanguage !== "de"
+    ? `- Bevorzugte Sprache: ${userLanguage} (aber Dialog ist auf Deutsch)`
+    : ""
+}
+
+WICHTIG: Passe deine Fragen an Alter und Erfahrungslevel an!
+${userAge && userAge < 14 ? "- Nutze einfache, kindgerechte Sprache" : ""}
+${
+  userAge && userAge >= 18
+    ? "- Nutze anspruchsvolle, professionelle Sprache"
+    : ""
+}
+${
+  userExperience === "beginner"
+    ? "- Stelle grundlegende Fragen, erkläre Konzepte einfach"
+    : ""
+}
+${
+  userExperience === "advanced"
+    ? "- Stelle tiefergehende Fragen, nutze Fachbegriffe"
+    : ""
+}
+`;
+
   // ✅ NEU: Trigger Background Story-Generierung nach 1. User-Antwort
   // Story wird während des Dialogs generiert und ist bei Dialog-Ende (nach ~30-60s) fertig
   if (answerNum === 1) {
     try {
       // Fire & Forget via fetch (verhindert Supabase Connection Issues)
       // Verwende fetch statt direkten Server Action Call wegen besserer Isolation
-      fetch(`${process.env.NEXT_PUBLIC_BETTER_AUTH_URL || 'http://localhost:3000'}/api/generate-story-background`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lessonId,
-          userId,
-          topic,
-        }),
-      }).catch((err) => {
+      fetch(
+        `${
+          process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "http://localhost:3000"
+        }/api/generate-story-background`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lessonId,
+            userId,
+            topic,
+          }),
+        }
+      ).catch((err) => {
         console.error("⚠️ Failed to trigger background story generation:", err);
         // Silent failure - Story wird später in StoryGeneratorWrapper nachgeholt
       });
-      console.log("✅ Background story generation triggered after 1st turn for lesson:", lessonId);
+      console.log(
+        "✅ Background story generation triggered after 1st turn for lesson:",
+        lessonId
+      );
     } catch (error) {
       console.error("⚠️ Exception while triggering background story:", error);
       // Weitermachen - Story wird später nachgeholt
@@ -128,31 +239,25 @@ export async function continueDialog(
     model: openai(dialogModel),
     system: `Du bist ein freundlicher Lern-Coach für das Thema "${topic}".
 
+${personalizedContext}
+
 AUFGABE:
 - Stelle gezielte Fragen, um das Vorwissen des Nutzers zu ermitteln
 - Passe deine Fragen dynamisch an die Antworten an
 - Sei motivierend und unterstützend
+- Duze den Nutzer IMMER (verwende "du", "dein", "dir")
 
-STRIKTE REGEL - MAXIMAL 5 FRAGEN:
+STRIKTE REGEL - EXAKT 5 FRAGEN:
 - Der Nutzer hat bisher ${answerNum} von ${maxAns} Fragen beantwortet
-- ${
-      answerNum === maxAns - 1
-        ? "DIES IST DIE LETZTE FRAGE! Stelle eine abschließende Frage."
-        : `Du kannst noch ${maxAns - answerNum} Frage(n) stellen.`
-    }
-- ${
-      answerNum >= 4
-        ? "⚠️ KRITISCH: Du MUSST JETZT das assessKnowledge-Tool verwenden! Keine Text-Antworten mehr - NUR Tool-Call!"
-        : answerNum >= 3
-        ? "Du kannst jetzt das assessKnowledge-Tool verwenden, um das Niveau zu bewerten."
-        : "Nach 2-3 Fragen: Nutze das 'assessKnowledge' Tool, um das Level zu bewerten"
-    }
-- EINE Frage pro Message - Keine Zusammenfassungen oder Erklärungen
-- Kurze, prägnante Fragen (1-2 Sätze)
+- Du MUSST noch ${maxAns - answerNum} Frage(n) stellen
+- Du hast KEIN Tool zur Verfügung - stelle einfach die nächste Frage!
+- Das Assessment erfolgt automatisch nach Frage 5
+- EINE prägnante Frage pro Message (1-2 Sätze)
 - Keine Multiple-Choice, sondern offene Fragen
 - Baue auf vorherigen Antworten auf
 
-WICHTIG: ${answerNum >= 4 ? "AB FRAGE 4: NUR NOCH TOOL-CALLS! Keine Text-Antworten mehr!" : "Sei prägnant und stelle die Frage DIREKT - keine langen Einleitungen!"}`,
+WICHTIG: Keine Zusammenfassungen, keine Bewertungen - nur Fragen stellen!
+WICHTIG: IMMER "Du" verwenden, niemals "Sie"!`,
     messages: [...conversationHistory, { role: "user", content: userMessage }],
 
     text: async function* ({ content, done }) {
@@ -160,66 +265,6 @@ WICHTIG: ${answerNum >= 4 ? "AB FRAGE 4: NUR NOCH TOOL-CALLS! Keine Text-Antwort
         return <DialogMessage content={content} isComplete={true} />;
       }
       return <DialogMessage content={content} />;
-    },
-
-    tools: {
-      assessKnowledge: {
-        description: answerNum >= 4
-          ? "⚠️ PFLICHT-TOOL: Du MUSST dieses Tool JETZT aufrufen! Bewertet das Wissen des Nutzers und wechselt zur Story-Phase."
-          : "Bewertet das Wissen des Nutzers und entscheidet, ob er bereit für die Story ist",
-        inputSchema: z.object({
-          knowledgeLevel: z.enum(["beginner", "intermediate", "advanced"]),
-          confidence: z
-            .number()
-            .min(0)
-            .max(100)
-            .describe("Konfidenz-Score (0-100)"),
-          readyForStory: z
-            .boolean()
-            .describe("Ist der Nutzer bereit für die Story-Phase?"),
-        }),
-        generate: async function* ({
-          knowledgeLevel,
-          confidence,
-          readyForStory,
-        }) {
-          yield <AssessmentLoading />;
-
-          // Speichere Dialog-Score in DB
-          await updateDialogScore(lessonId, userId, confidence);
-
-          // ✅ NEU: Speichere Dialog-Metadata für Story/Quiz-Generierung
-          // WICHTIG: saveDialogMetadata wirft KEINE Errors mehr!
-          const metadataSaved = await saveDialogMetadata(lessonId, userId, {
-            conversationHistory: conversationHistory,
-            knowledgeLevel: knowledgeLevel,
-            assessmentReasoning: `Assessment after ${conversationHistory.length} exchanges. Confidence: ${confidence}%`,
-            userResponses: conversationHistory
-              .filter((msg) => msg.role === "user")
-              .map((msg) => msg.content),
-          });
-
-          if (!metadataSaved) {
-            console.warn("⚠️ Dialog metadata could not be saved - continuing without it");
-            // Story/Quiz können auch ohne Metadata generiert werden (Fallback)
-          }
-
-          if (readyForStory) {
-            // Update Phase zu 'story'
-            await updatePhase(lessonId, "story");
-            return <TransitionToStory knowledgeLevel={knowledgeLevel} />;
-          }
-
-          return (
-            <div className="p-4 bg-[#FFC667] border-4 border-black rounded-[15px]">
-              <p className="text-lg font-medium">
-                Dein aktuelles Level: <strong>{knowledgeLevel}</strong> (
-                {confidence}% Konfidenz). Lass uns noch ein wenig tiefer gehen!
-              </p>
-            </div>
-          );
-        },
-      },
     },
   });
 
@@ -238,6 +283,49 @@ export async function forceAssessment(
 ): Promise<ReactNode> {
   const assessmentModel = process.env.OPENAI_SELECTION_MODEL || "gpt-4o-mini";
 
+  // ✅ NEU: Lade User-Profil für Personalisierung
+  const session = await auth.api.getSession({ headers: await headers() });
+  const userProfile = session?.user;
+
+  // Extrahiere Profil-Daten (mit Fallbacks)
+  const userAge = userProfile?.age;
+  const userLanguage = userProfile?.language || "de";
+  const userExperience = userProfile?.experienceLevel || "beginner";
+
+  // ✅ NEU: Personalisierter Context
+  const personalizedContext = `
+USER-PROFIL (Personalisierung):
+${userAge ? `- Alter: ${userAge} Jahre` : "- Alter: Nicht angegeben"}
+${
+  userExperience
+    ? `- Erfahrungslevel: ${userExperience} (passe Komplexität der Fragen an!)`
+    : ""
+}
+${
+  userLanguage !== "de"
+    ? `- Bevorzugte Sprache: ${userLanguage} (aber Dialog ist auf Deutsch)`
+    : ""
+}
+
+WICHTIG: Passe deine Fragen an Alter und Erfahrungslevel an!
+${userAge && userAge < 14 ? "- Nutze einfache, kindgerechte Sprache" : ""}
+${
+  userAge && userAge >= 18
+    ? "- Nutze anspruchsvolle, professionelle Sprache"
+    : ""
+}
+${
+  userExperience === "beginner"
+    ? "- Stelle grundlegende Fragen, erkläre Konzepte einfach"
+    : ""
+}
+${
+  userExperience === "advanced"
+    ? "- Stelle tiefergehende Fragen, nutze Fachbegriffe"
+    : ""
+}
+`;
+
   // Erstelle einen zusammengefassten Prompt basierend auf der Conversation-History
   const conversationSummary = conversationHistory
     .map(
@@ -249,6 +337,8 @@ export async function forceAssessment(
     model: openai(assessmentModel),
     system: `Du bist ein Bildungs-Assessor, der das Wissen eines Nutzers bewertet.
 
+${personalizedContext}
+
 AUFGABE:
 Analysiere das folgende Gespräch und bewerte das Vorwissen des Nutzers.
 
@@ -256,7 +346,8 @@ WICHTIG:
 - Der Nutzer hat maximal 5 Fragen beantwortet
 - Du MUSST JETZT das Wissen bewerten und die readyForStory Flag auf true setzen
 - Keine weiteren Fragen stellen!
-- Nutze das assessKnowledge-Tool mit den Ergebnissen`,
+- Nutze das assessKnowledge-Tool mit den Ergebnissen
+- Berücksichtige Alter und Erfahrungslevel bei der Bewertung`,
     prompt: `Basierend auf diesem Gespräch zum Thema "${topic}", bewerte das Wissen des Nutzers:
 
 ${conversationSummary}
@@ -302,7 +393,9 @@ Nutze das assessKnowledge-Tool, um die Bewertung zu speichern und zur Story-Phas
           });
 
           if (!metadataSaved) {
-            console.warn("⚠️ Dialog metadata could not be saved (forceAssessment) - continuing without it");
+            console.warn(
+              "⚠️ Dialog metadata could not be saved (forceAssessment) - continuing without it"
+            );
             // Story/Quiz können auch ohne Metadata generiert werden (Fallback)
           }
 

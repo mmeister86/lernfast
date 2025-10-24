@@ -3,10 +3,7 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { revalidateTag, revalidatePath } from "next/cache";
 import type { ResearchData } from "@/lib/lesson.types";
-import type {
-  LessonScoreMetadata,
-  ConversationEntry,
-} from "@/lib/score.types";
+import type { LessonScoreMetadata, ConversationEntry } from "@/lib/score.types";
 
 // ============================================
 // CACHE INVALIDIERUNG
@@ -213,4 +210,92 @@ export async function getDialogMetadata(
   }
 
   return data.metadata as LessonScoreMetadata;
+}
+
+// ============================================
+// NEU: DIALOG-PERSISTIERUNG HELPERS
+// ============================================
+
+/**
+ * Speichert Dialog-Message in Datenbank (Persistierung)
+ * Wird nach JEDER User/Assistant Message aufgerufen
+ */
+export async function saveDialogMessage(
+  lessonId: string,
+  role: "user" | "assistant",
+  content: string
+) {
+  const supabase = createServiceClient();
+
+  // Lade aktuelle History
+  const { data: lesson } = await supabase
+    .from("lesson")
+    .select("dialog_history")
+    .eq("id", lessonId)
+    .single();
+
+  const currentHistory = (lesson?.dialog_history as any[]) || [];
+
+  // Füge neue Message hinzu
+  const newHistory = [
+    ...currentHistory,
+    {
+      role,
+      content,
+      timestamp: new Date().toISOString(),
+    },
+  ];
+
+  // Speichere aktualisierte History
+  await supabase
+    .from("lesson")
+    .update({ dialog_history: newHistory })
+    .eq("id", lessonId);
+
+  console.log(`✅ Dialog message saved (${role}):`, content.substring(0, 50));
+}
+
+/**
+ * Lädt Dialog-History aus Datenbank
+ * Wird beim Component-Mount aufgerufen für Wiederaufnahme
+ */
+export async function loadDialogHistory(
+  lessonId: string
+): Promise<Array<{ role: "user" | "assistant"; content: string }>> {
+  const supabase = createServiceClient();
+
+  const { data, error } = await supabase
+    .from("lesson")
+    .select("dialog_history")
+    .eq("id", lessonId)
+    .single();
+
+  if (error || !data?.dialog_history) {
+    console.log("No dialog history found for lesson:", lessonId);
+    return [];
+  }
+
+  console.log(
+    `✅ Dialog history loaded: ${
+      (data.dialog_history as any[]).length
+    } messages`
+  );
+  return data.dialog_history as Array<{
+    role: "user" | "assistant";
+    content: string;
+  }>;
+}
+
+/**
+ * Löscht Dialog-History (z.B. nach Abschluss oder Reset)
+ */
+export async function clearDialogHistory(lessonId: string) {
+  const supabase = createServiceClient();
+
+  await supabase
+    .from("lesson")
+    .update({ dialog_history: [] })
+    .eq("id", lessonId);
+
+  console.log("✅ Dialog history cleared for lesson:", lessonId);
 }

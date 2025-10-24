@@ -3,21 +3,21 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { GradientBackground } from "@/components/landing/gradient-background";
-import { Hamster404 } from "@/components/not-found/hamster-404";
+import { Espresso404 } from "@/components/not-found/espresso-404";
 import { SimpleQuiz } from "@/components/not-found/simple-quiz";
 import { getRandomFunFact } from "@/components/not-found/fun-facts";
 
 export const metadata: Metadata = {
   title: "404 - Seite nicht gefunden | lernfa.st",
   description:
-    "Der Hamster hat diese Seite gefressen! Aber keine Sorge - wir helfen dir dabei, sie wiederzufinden.",
+    "Diese Seite ist verschüttet! Aber keine Sorge - wir helfen dir dabei, sie wiederzufinden.",
 };
 
 /**
  * 404 Not Found Seite
  *
  * Humorvolle 404-Seite im Neobrutalism-Stil mit:
- * - Animiertem Hamster-Maskottchen
+ * - Animierter umgefallener Espresso-Tasse
  * - Zufälligen Lern-Tipps/Fun Facts
  * - Interaktivem Quiz zum "Finden" der Seite
  * - Navigation zurück zur Homepage
@@ -36,14 +36,14 @@ export default function NotFoundPage() {
         <div className="w-full max-w-4xl mx-auto space-y-8">
           {/* Header Section */}
           <div className="text-center space-y-6">
-            {/* Hamster Animation */}
+            {/* Espresso Animation */}
             <div className="flex justify-center mb-8">
-              <Hamster404 />
+              <Espresso404 />
             </div>
 
             {/* Hauptüberschrift */}
             <h1 className="text-5xl md:text-6xl font-extrabold text-black leading-tight">
-              Der Hamster hat diese Seite gefressen! 🐹
+              Diese Seite ist verschüttet! ☕
             </h1>
 
             {/* Untertitel */}
@@ -78,8 +78,7 @@ export default function NotFoundPage() {
                 Kannst du die Seite wiederfinden? 🕵️‍♂️
               </h2>
               <p className="text-lg font-medium text-gray-700">
-                Beantworte ein paar Fragen und vielleicht findet unser Hamster
-                sie wieder!
+                Beantworte ein paar Fragen und vielleicht finden wir sie wieder!
               </p>
             </div>
 
@@ -111,7 +110,7 @@ export default function NotFoundPage() {
                 Immer noch nicht gefunden? 🤔
               </h3>
               <p className="text-lg font-medium text-black">
-                Unser Hamster ist ein bisschen durcheinander. Versuche es mit:
+                Unser Espresso ist ein bisschen durcheinander. Versuche es mit:
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
                 <div className="space-y-2">
@@ -141,7 +140,7 @@ export default function NotFoundPage() {
                 <div className="space-y-2">
                   <p className="font-extrabold text-black">• Kontaktiere uns</p>
                   <p className="font-medium text-black text-sm">
-                    Unser Hamster hilft gerne weiter!
+                    Unser Espresso hilft gerne weiter!
                   </p>
                 </div>
               </div>
@@ -151,11 +150,11 @@ export default function NotFoundPage() {
           {/* Footer Message */}
           <div className="text-center pt-8">
             <p className="text-lg font-medium text-gray-600">
-              🐹 <span className="font-extrabold">lernfa.st</span> - Lerne
-              schneller mit unserem Hamster!
+              ☕ <span className="font-extrabold">lernfa.st</span> - Lerne
+              schneller mit unserem Espresso!
             </p>
             <p className="text-sm font-medium text-gray-500 mt-2">
-              Diese Seite wurde mit ❤️ und vielen Hamster-Nüssen erstellt.
+              Diese Seite wurde mit ❤️ und viel Kaffee erstellt.
             </p>
           </div>
         </div>

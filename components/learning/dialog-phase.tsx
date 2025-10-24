@@ -46,26 +46,70 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
       setHasStarted(true);
       setIsLoading(true);
 
-      startDialog(lessonId, topic)
-        .then((initialQuestion) => {
-          setMessages([initialQuestion]);
-          // Extrahiere Text-Content für History (vereinfacht)
-          setConversationHistory([
-            { role: "assistant", content: "Initial question asked" },
-          ]);
-        })
-        .catch((error) => {
-          console.error("Failed to start dialog:", error);
-          setMessages([
-            <ErrorMessage
-              key="error-start"
-              message="Entschuldigung, ich konnte keine Frage generieren. Bitte lade die Seite neu."
-            />,
-          ]);
-        })
-        .finally(() => {
+      // ✅ NEU: Lade persistierte Dialog-History
+      const loadExistingHistory = async () => {
+        const { loadDialogHistory, startDialog, saveDialogMessage } =
+          await import("@/app/lesson/[id]/actions");
+
+        const existingHistory = await loadDialogHistory(lessonId);
+
+        if (existingHistory.length > 0) {
+          // Dialog wurde bereits begonnen - stelle History wieder her
+          setConversationHistory(existingHistory);
+          setUserAnswerCount(
+            existingHistory.filter((msg) => msg.role === "user").length
+          );
+
+          // Zeige existierende Messages in UI (vereinfacht)
+          const restoredMessages = existingHistory.map((msg, idx) =>
+            msg.role === "user" ? (
+              <UserMessage key={`restored-user-${idx}`} content={msg.content} />
+            ) : (
+              <DialogMessage
+                key={`restored-ai-${idx}`}
+                content={msg.content}
+                isComplete={true}
+              />
+            )
+          );
+          setMessages(restoredMessages);
+
+          console.log(
+            `✅ Dialog resumed: ${existingHistory.length} messages restored`
+          );
           setIsLoading(false);
-        });
+        } else {
+          // Neuer Dialog - starte mit Initial-Frage
+          startDialog(lessonId, topic)
+            .then(async (initialQuestion) => {
+              setMessages([initialQuestion]);
+              setConversationHistory([
+                { role: "assistant", content: "Initial question asked" },
+              ]);
+
+              // ✅ NEU: Speichere Initial-Frage in DB
+              await saveDialogMessage(
+                lessonId,
+                "assistant",
+                "Initial question asked"
+              );
+            })
+            .catch((error) => {
+              console.error("Failed to start dialog:", error);
+              setMessages([
+                <ErrorMessage
+                  key="error-start"
+                  message="Entschuldigung, ich konnte keine Frage generieren. Bitte lade die Seite neu."
+                />,
+              ]);
+            })
+            .finally(() => {
+              setIsLoading(false);
+            });
+        }
+      };
+
+      loadExistingHistory();
     }
   }, [hasStarted, lessonId, topic]);
 
@@ -94,6 +138,10 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
 
     setInput("");
 
+    // ✅ NEU: Speichere User-Message in DB
+    const { saveDialogMessage } = await import("@/app/lesson/[id]/actions");
+    await saveDialogMessage(lessonId, "user", userMessageContent);
+
     try {
       // Bei 5. Antwort: forceAssessment aufrufen
       if (newAnswerCount === MAX_DIALOG_ANSWERS) {
@@ -111,7 +159,9 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
           </div>,
         ]);
 
-        const { forceAssessment } = await import("@/app/lesson/[id]/actions");
+        const { forceAssessment, clearDialogHistory } = await import(
+          "@/app/lesson/[id]/actions"
+        );
         const aiResponse = await forceAssessment(
           lessonId,
           userId,
@@ -120,11 +170,17 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
         );
         setMessages((prev) => [...prev, aiResponse]);
 
+        // ✅ NEU: Lösche Dialog-History nach Abschluss
+        await clearDialogHistory(lessonId);
+
         // Invalidiere Cache nach Dialog-Abschluss
         await invalidateLessonCache(lessonId);
         router.refresh(); // Aktualisiere UI
       } else {
         // Normale Dialog-Fortsetzung
+        const { continueDialog, saveDialogMessage } = await import(
+          "@/app/lesson/[id]/actions"
+        );
         const aiResponse = await continueDialog(
           lessonId,
           userId,
@@ -138,10 +194,14 @@ export function DialogPhase({ lessonId, userId, topic }: DialogPhaseProps) {
         setMessages((prev) => [...prev, aiResponse]);
 
         // Extrahiere Text-Content für History (vereinfacht)
+        const aiContent = "Response received"; // Vereinfacht
         setConversationHistory((prev) => [
           ...prev,
-          { role: "assistant", content: "Response received" },
+          { role: "assistant", content: aiContent },
         ]);
+
+        // ✅ NEU: Speichere AI-Response in DB
+        await saveDialogMessage(lessonId, "assistant", aiContent);
       }
     } catch (error) {
       console.error("Dialog error:", error);
@@ -339,16 +399,24 @@ function TypingIndicator() {
   );
 }
 
-function DialogMessageTTS({ messageIndex, userLanguage }: { messageIndex: number; userLanguage: string }) {
+function DialogMessageTTS({
+  messageIndex,
+  userLanguage,
+}: {
+  messageIndex: number;
+  userLanguage: string;
+}) {
   const [dialogText, setDialogText] = useState<string | null>(null);
 
   useEffect(() => {
     // Finde das data-dialog-text Attribut in der Parent-Komponente
-    const wrapper = document.querySelectorAll('.dialog-message-wrapper')[messageIndex];
+    const wrapper = document.querySelectorAll(".dialog-message-wrapper")[
+      messageIndex
+    ];
     if (wrapper) {
-      const trigger = wrapper.querySelector('.dialog-tts-trigger');
+      const trigger = wrapper.querySelector(".dialog-tts-trigger");
       if (trigger) {
-        const text = trigger.getAttribute('data-dialog-text');
+        const text = trigger.getAttribute("data-dialog-text");
         setDialogText(text);
       }
     }
