@@ -4,7 +4,6 @@ import { redirect, notFound } from "next/navigation";
 import { getCachedLesson } from "@/lib/supabase/queries";
 import { createServiceClient } from "@/lib/supabase/server";
 import { Navbar } from "@/components/navbar";
-import { FlashcardViewer } from "@/components/flashcard/flashcard-viewer";
 import { DialogPhase } from "@/components/learning/dialog-phase";
 import { VoiceDialogPhase } from "@/components/learning/voice-dialog-phase";
 import { StoryGeneratorWrapper } from "@/components/learning/story-generator-wrapper";
@@ -58,27 +57,7 @@ export default async function LessonPage({ params }: PageProps) {
 
   const lessonWithFlashcards = lesson as LessonWithFlashcards;
 
-  // Prüfe ob NEUES Interactive Learning System oder ALTES Flashcard-System
-  const isInteractiveLearning = !!lessonWithFlashcards.current_phase;
-
-  // ALTES SYSTEM: Fallback auf klassische Flashcards
-  if (!isInteractiveLearning) {
-    return (
-      <>
-        <Navbar />
-        <main className="min-h-screen bg-background px-4 pt-24 pb-8">
-          <div className="max-w-7xl mx-auto">
-            <FlashcardViewer
-              lesson={lessonWithFlashcards}
-              flashcards={lessonWithFlashcards.flashcard}
-            />
-          </div>
-        </main>
-      </>
-    );
-  }
-
-  // NEUES SYSTEM: Interactive Learning
+  // Interactive Learning System
   const currentPhase = lessonWithFlashcards.current_phase as LearningPhase;
 
   // Lade Score für Completion Screen

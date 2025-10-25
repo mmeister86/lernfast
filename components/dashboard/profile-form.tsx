@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { authClient } from "@/lib/auth-client";
 import {
+  AVATAR_LABELS,
+  AVATAR_PREFERENCES,
   DIFFICULTY_LEVEL_LABELS,
   DIFFICULTY_LEVELS,
   EXPERIENCE_LEVEL_LABELS,
@@ -23,6 +25,7 @@ import {
   TTS_VOICES,
   TTS_VOICE_LABELS,
   profileUpdateSchema,
+  type AvatarPreference,
   type ProfileUpdatePayload,
   type TTSVoice,
 } from "@/lib/profile.types";
@@ -41,6 +44,7 @@ type ProfileFormProps = {
     preferredDifficulty?: string;
     preferredCardCount?: number;
     ttsVoice?: string;
+    avatarPreference?: string;
   };
   userId: string;
 };
@@ -58,6 +62,8 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
     preferredDifficulty: (initialData.preferredDifficulty as any) || "medium",
     preferredCardCount: initialData.preferredCardCount || 5,
     ttsVoice: (initialData.ttsVoice as TTSVoice) || "nova",
+    avatarPreference:
+      (initialData.avatarPreference as AvatarPreference) || "hanne",
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -557,6 +563,71 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
                         >
                           {isPlayingPreview === voice ? "⏸️" : "🔊"}
                         </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Avatar-Einstellungen */}
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-[#00D9BE] border-b-4 border-black px-6 py-6 -m-6 mb-6">
+              <CardTitle className="pl-6 text-2xl text-black">
+                Avatar-Einstellungen
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-2">
+                <Label className="text-lg font-extrabold">
+                  Bevorzugter Avatar für Voice-Chat
+                </Label>
+                <p className="text-sm font-medium text-foreground/60 mb-4">
+                  Wähle den Avatar, der als dein Gesprächspartner im Voice-Chat
+                  angezeigt wird.
+                </p>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {AVATAR_PREFERENCES.map((avatar) => (
+                    <div
+                      key={avatar}
+                      className={cn(
+                        "p-4 rounded-[15px] border-4 border-black transition-all duration-100 cursor-pointer",
+                        formData.avatarPreference === avatar
+                          ? "bg-[#00D9BE] text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-[2px] translate-y-[2px]"
+                          : "bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]"
+                      )}
+                      onClick={() =>
+                        setFormData({ ...formData, avatarPreference: avatar })
+                      }
+                    >
+                      <div className="flex flex-col items-center text-center">
+                        <img
+                          src={`/teachers/${avatar}.jpeg`}
+                          alt={AVATAR_LABELS[avatar].name}
+                          className="w-24 h-24 rounded-[15px] border-4 border-black object-cover mb-3"
+                        />
+                        <p
+                          className={cn(
+                            "font-extrabold text-lg mb-1",
+                            formData.avatarPreference === avatar
+                              ? "text-black"
+                              : "text-black"
+                          )}
+                        >
+                          {AVATAR_LABELS[avatar].name}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-sm font-medium",
+                            formData.avatarPreference === avatar
+                              ? "text-black/80"
+                              : "text-black/70"
+                          )}
+                        >
+                          {AVATAR_LABELS[avatar].description}
+                        </p>
                       </div>
                     </div>
                   ))}

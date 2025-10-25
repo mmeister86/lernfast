@@ -14,7 +14,7 @@ const VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"] as const;
 
 async function generatePreviews() {
   const outputDir = path.join(process.cwd(), "public/audio/voice-previews");
-  
+
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
     console.log(`📁 Created directory: ${outputDir}`);
@@ -25,9 +25,9 @@ async function generatePreviews() {
   for (const voice of VOICES) {
     try {
       console.log(`🎤 Generating preview for "${voice}"...`);
-      
+
       const combinedText = PREVIEW_TEXTS.join(" ");
-      
+
       const mp3 = await openai.audio.speech.create({
         model: "tts-1",
         voice: voice,
@@ -36,9 +36,13 @@ async function generatePreviews() {
 
       const buffer = Buffer.from(await mp3.arrayBuffer());
       const filePath = path.join(outputDir, `${voice}-preview.mp3`);
-      
+
       fs.writeFileSync(filePath, buffer);
-      console.log(`✅ Generated: ${voice}-preview.mp3 (${(buffer.length / 1024).toFixed(2)} KB)\n`);
+      console.log(
+        `✅ Generated: ${voice}-preview.mp3 (${(buffer.length / 1024).toFixed(
+          2
+        )} KB)\n`
+      );
     } catch (error) {
       console.error(`❌ Failed to generate ${voice}:`, error);
       process.exit(1); // Fail fast

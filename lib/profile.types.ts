@@ -44,6 +44,29 @@ export const TTS_VOICE_LABELS: Record<
   shimmer: { name: "Shimmer", description: "Weiblich und sanft" },
 };
 
+// Avatar Preference Types
+export const AVATAR_PREFERENCES = [
+  "hanne",
+  "lena",
+  "mai",
+  "naomi",
+  "niklas",
+  "tariq",
+] as const;
+export type AvatarPreference = (typeof AVATAR_PREFERENCES)[number];
+
+export const AVATAR_LABELS: Record<
+  AvatarPreference,
+  { name: string; description: string }
+> = {
+  hanne: { name: "Hanne", description: "Freundlich und geduldig" },
+  lena: { name: "Lena", description: "Energisch und motivierend" },
+  mai: { name: "Mai", description: "Kreativ und inspirierend" },
+  naomi: { name: "Naomi", description: "Ruhig und analytisch" },
+  niklas: { name: "Niklas", description: "Strukturiert und methodisch" },
+  tariq: { name: "Tariq", description: "Dynamisch und begeisternd" },
+};
+
 // ============================================
 // Zod Schema für Validation
 // ============================================
@@ -80,6 +103,7 @@ export const profileUpdateSchema = z.object({
     .max(20, "Maximum 20 Karten pro Session")
     .optional(),
   ttsVoice: z.enum(TTS_VOICES).optional(),
+  avatarPreference: z.enum(AVATAR_PREFERENCES).optional(),
 });
 
 /**
@@ -109,6 +133,8 @@ export interface UserProfile {
   profileUpdatedAt?: Date | null;
   // TTS-Einstellungen
   ttsVoice?: TTSVoice; // Optional field
+  // Avatar-Einstellungen
+  avatarPreference?: AvatarPreference; // Optional field
 }
 
 // ============================================

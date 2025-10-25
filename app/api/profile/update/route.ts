@@ -86,6 +86,11 @@ export async function POST(request: NextRequest) {
       values.push(data.ttsVoice);
     }
 
+    if (data.avatarPreference !== undefined) {
+      updates.push(`avatar_preference = $${paramIndex++}`);
+      values.push(data.avatarPreference);
+    }
+
     // Name Update (direkt in Better Auth user table)
     if (data.name !== undefined) {
       updates.push(`name = $${paramIndex++}`);
@@ -129,6 +134,7 @@ export async function POST(request: NextRequest) {
         onboarding_completed as "onboardingCompleted",
         profile_updated_at as "profileUpdatedAt",
         tts_voice as "ttsVoice",
+        avatar_preference as "avatarPreference",
         "createdAt", "updatedAt"
     `;
 
@@ -195,6 +201,7 @@ export async function GET() {
         onboarding_completed as "onboardingCompleted",
         profile_updated_at as "profileUpdatedAt",
         tts_voice as "ttsVoice",
+        avatar_preference as "avatarPreference",
         "createdAt", "updatedAt"
       FROM "user"
       WHERE id = $1

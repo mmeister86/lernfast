@@ -149,6 +149,7 @@ export const getCachedUserProfile = unstable_cache(
         onboarding_completed,
         profile_updated_at,
         tts_voice,
+        avatar_preference,
         createdAt,
         updatedAt
       `
@@ -178,6 +179,7 @@ export const getCachedUserProfile = unstable_cache(
           onboardingCompleted: data.onboarding_completed,
           profileUpdatedAt: data.profile_updated_at,
           ttsVoice: data.tts_voice,
+          avatarPreference: data.avatar_preference,
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
         }

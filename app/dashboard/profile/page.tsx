@@ -43,6 +43,7 @@ export default async function ProfilePage() {
             experienceLevel: "beginner",
             preferredDifficulty: "medium",
             preferredCardCount: 5,
+            avatarPreference: "hanne",
           }}
           userId={session.user.id}
         />
@@ -64,6 +65,7 @@ export default async function ProfilePage() {
           experienceLevel: profile.experienceLevel || "beginner",
           preferredDifficulty: profile.preferredDifficulty || "medium",
           preferredCardCount: profile.preferredCardCount || 5,
+          avatarPreference: profile.avatarPreference || "hanne",
         }}
         userId={session.user.id}
       />
