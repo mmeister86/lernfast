@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { Navbar } from "@/components/navbar";
 import { FlashcardViewer } from "@/components/flashcard/flashcard-viewer";
 import { DialogPhase } from "@/components/learning/dialog-phase";
+import { VoiceDialogPhase } from "@/components/learning/voice-dialog-phase";
 import { StoryGeneratorWrapper } from "@/components/learning/story-generator-wrapper";
 import { QuizPhase } from "@/components/learning/quiz-phase";
 import { LearningProgress } from "@/components/learning/learning-progress";
@@ -151,14 +152,21 @@ export default async function LessonPage({ params }: PageProps) {
           {/* Phase Progress Indicator */}
           <LearningProgress currentPhase={currentPhase} lessonId={id} />
 
-          {/* Dialog Phase */}
-          {currentPhase === "dialog" && (
-            <DialogPhase
-              lessonId={id}
-              userId={session.user.id}
-              topic={lessonWithFlashcards.topic}
-            />
-          )}
+          {/* Dialog Phase - Voice oder Text basierend auf Feature Flag */}
+          {currentPhase === "dialog" &&
+            (process.env.NEXT_PUBLIC_ENABLE_VOICE_DIALOG === "true" ? (
+              <VoiceDialogPhase
+                lessonId={id}
+                userId={session.user.id}
+                topic={lessonWithFlashcards.topic}
+              />
+            ) : (
+              <DialogPhase
+                lessonId={id}
+                userId={session.user.id}
+                topic={lessonWithFlashcards.topic}
+              />
+            ))}
 
           {/* Story Phase - LIVE Generation wenn keine Kapitel vorhanden */}
           {currentPhase === "story" && (

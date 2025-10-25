@@ -86,6 +86,13 @@ export const auth = betterAuth({
         input: false, // Wird automatisch vom Trigger gesetzt
         fieldName: "profile_updated_at",
       },
+      ttsVoice: {
+        type: "string",
+        required: false,
+        defaultValue: "nova",
+        input: true, // Erlaubt Input bei Registrierung
+        fieldName: "tts_voice",
+      },
     },
     changeEmail: {
       enabled: true,

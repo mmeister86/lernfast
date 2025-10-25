@@ -133,7 +133,26 @@ export const getCachedUserProfile = unstable_cache(
 
     const { data, error } = await supabase
       .from("user")
-      .select("*")
+      .select(
+        `
+        id,
+        email,
+        name,
+        image,
+        emailVerified,
+        age,
+        language,
+        learning_goals,
+        experience_level,
+        preferred_difficulty,
+        preferred_card_count,
+        onboarding_completed,
+        profile_updated_at,
+        tts_voice,
+        createdAt,
+        updatedAt
+      `
+      )
       .eq("id", userId)
       .single();
 
@@ -142,7 +161,29 @@ export const getCachedUserProfile = unstable_cache(
       return { data: null, error };
     }
 
-    return { data, error: null };
+    // Transformiere Daten: Konvertiere snake_case zu camelCase
+    const transformedData = data
+      ? {
+          id: data.id,
+          email: data.email,
+          name: data.name,
+          image: data.image,
+          emailVerified: data.emailVerified,
+          age: data.age,
+          language: data.language,
+          learningGoals: data.learning_goals,
+          experienceLevel: data.experience_level,
+          preferredDifficulty: data.preferred_difficulty,
+          preferredCardCount: data.preferred_card_count,
+          onboardingCompleted: data.onboarding_completed,
+          profileUpdatedAt: data.profile_updated_at,
+          ttsVoice: data.tts_voice,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+        }
+      : null;
+
+    return { data: transformedData, error: null };
   },
   ["user-profile"],
   {

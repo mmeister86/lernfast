@@ -37,7 +37,8 @@ const VOICE_MAP: Record<string, string> = {
  */
 export async function generateSpeechAudio(
   text: string,
-  language: string = "de"
+  language: string = "de",
+  customVoice?: string // NEU: Optional custom voice
 ): Promise<{ audioUrl: string }> {
   // Validierung
   if (!text || text.trim().length === 0) {
@@ -50,11 +51,13 @@ export async function generateSpeechAudio(
     );
   }
 
-  // Voice auswählen
-  const voice = VOICE_MAP[language] || "nova";
+  // Voice auswählen (customVoice hat Priorität)
+  const voice = customVoice || VOICE_MAP[language] || "nova";
 
   console.log(
-    `[TTS] Generating speech for language: ${language}, voice: ${voice}, text length: ${text.length}`
+    `[TTS] Generating speech - language: ${language}, voice: ${voice}${
+      customVoice ? " (custom)" : ""
+    }, text length: ${text.length}`
   );
 
   try {
@@ -82,7 +85,10 @@ export async function generateSpeechAudio(
     return { audioUrl };
   } catch (error) {
     console.error("[TTS] Generation failed:", error);
-    console.error("[TTS] Error details:", error instanceof Error ? error.message : String(error));
+    console.error(
+      "[TTS] Error details:",
+      error instanceof Error ? error.message : String(error)
+    );
     throw new Error(
       "Audio konnte nicht generiert werden. Bitte versuche es erneut."
     );
@@ -101,7 +107,8 @@ export async function generateSpeechAudio(
 export async function generateChapterAudio(
   narrative: string,
   keyLearnings: string[],
-  language: string = "de"
+  language: string = "de",
+  customVoice?: string // NEU
 ): Promise<{ audioUrl: string }> {
   // Kombiniere Narrative + Key Learnings
   const keyLearningsText = keyLearnings
@@ -110,5 +117,5 @@ export async function generateChapterAudio(
 
   const fullText = `${narrative}\n\nDas Wichtigste:\n${keyLearningsText}`;
 
-  return generateSpeechAudio(fullText, language);
+  return generateSpeechAudio(fullText, language, customVoice);
 }

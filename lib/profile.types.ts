@@ -21,6 +21,29 @@ export type Language = (typeof LANGUAGES)[number];
 export type ExperienceLevel = (typeof EXPERIENCE_LEVELS)[number];
 export type DifficultyLevel = (typeof DIFFICULTY_LEVELS)[number];
 
+// TTS Voice Types
+export const TTS_VOICES = [
+  "alloy",
+  "echo",
+  "fable",
+  "onyx",
+  "nova",
+  "shimmer",
+] as const;
+export type TTSVoice = (typeof TTS_VOICES)[number];
+
+export const TTS_VOICE_LABELS: Record<
+  TTSVoice,
+  { name: string; description: string }
+> = {
+  alloy: { name: "Alloy", description: "Neutral und klar" },
+  echo: { name: "Echo", description: "Männlich und tief" },
+  fable: { name: "Fable", description: "Warm und freundlich" },
+  onyx: { name: "Onyx", description: "Männlich und professionell" },
+  nova: { name: "Nova", description: "Weiblich und energisch" },
+  shimmer: { name: "Shimmer", description: "Weiblich und sanft" },
+};
+
 // ============================================
 // Zod Schema für Validation
 // ============================================
@@ -56,6 +79,7 @@ export const profileUpdateSchema = z.object({
     .min(3, "Minimum 3 Karten pro Session")
     .max(20, "Maximum 20 Karten pro Session")
     .optional(),
+  ttsVoice: z.enum(TTS_VOICES).optional(),
 });
 
 /**
@@ -83,10 +107,8 @@ export interface UserProfile {
   preferredCardCount: number;
   onboardingCompleted: boolean;
   profileUpdatedAt?: Date | null;
-  // TTS-Einstellungen (MVP - Optional für Phase 2)
-  ttsEnabled?: boolean; // TTS an/aus (Default: true)
-  ttsAutoPlay?: boolean; // Auto-Play bei KI-Antworten (Default: false)
-  ttsVoice?: string; // Manuelle Voice-Auswahl (Default: auto basierend auf language)
+  // TTS-Einstellungen
+  ttsVoice?: TTSVoice; // Optional field
 }
 
 // ============================================

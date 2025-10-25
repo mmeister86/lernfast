@@ -20,8 +20,11 @@ import {
   EXPERIENCE_LEVELS,
   LANGUAGE_LABELS,
   LANGUAGES,
+  TTS_VOICES,
+  TTS_VOICE_LABELS,
   profileUpdateSchema,
   type ProfileUpdatePayload,
+  type TTSVoice,
 } from "@/lib/profile.types";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -37,6 +40,7 @@ type ProfileFormProps = {
     experienceLevel?: string;
     preferredDifficulty?: string;
     preferredCardCount?: number;
+    ttsVoice?: string;
   };
   userId: string;
 };
@@ -53,11 +57,15 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
     experienceLevel: (initialData.experienceLevel as any) || "beginner",
     preferredDifficulty: (initialData.preferredDifficulty as any) || "medium",
     preferredCardCount: initialData.preferredCardCount || 5,
+    ttsVoice: (initialData.ttsVoice as TTSVoice) || "nova",
   });
 
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState("");
+  const [isPlayingPreview, setIsPlayingPreview] = useState<TTSVoice | null>(
+    null
+  );
 
   // E-Mail-Änderung State
   const [newEmail, setNewEmail] = useState("");
@@ -110,6 +118,26 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Voice Preview Handler
+  const playVoicePreview = (voice: TTSVoice) => {
+    if (isPlayingPreview === voice) {
+      // Stop current preview
+      setIsPlayingPreview(null);
+      return;
+    }
+
+    const audio = new Audio(`/audio/voice-previews/${voice}-preview.mp3`);
+    setIsPlayingPreview(voice);
+
+    audio.play().catch((error) => {
+      console.error("Audio playback failed:", error);
+      setIsPlayingPreview(null);
+    });
+
+    audio.onended = () => setIsPlayingPreview(null);
+    audio.onerror = () => setIsPlayingPreview(null);
   };
 
   // E-Mail-Änderung Handler
@@ -454,6 +482,85 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
                     {errors.preferredCardCount}
                   </p>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Voice-Einstellungen */}
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-[#662CB7] border-b-4 border-black px-6 py-6 -m-6 mb-6">
+              <CardTitle className="pl-6 text-2xl text-white">
+                Stimmen-Einstellungen
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-2">
+                <Label className="text-lg font-extrabold">
+                  Bevorzugte TTS-Stimme für Voice-Chat
+                </Label>
+                <p className="text-sm font-medium text-foreground/60 mb-4">
+                  Wähle die Stimme, die dir am besten gefällt. Klicke auf
+                  "Anhören" für eine Vorschau.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {TTS_VOICES.map((voice) => (
+                    <div
+                      key={voice}
+                      className={cn(
+                        "p-4 rounded-[15px] border-4 border-black transition-all duration-100",
+                        formData.ttsVoice === voice
+                          ? "bg-[#662CB7] text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                          : "bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFormData({ ...formData, ttsVoice: voice })
+                          }
+                          className="flex-1 text-left"
+                        >
+                          <p
+                            className={cn(
+                              "font-extrabold text-lg",
+                              formData.ttsVoice === voice
+                                ? "text-white"
+                                : "text-black"
+                            )}
+                          >
+                            {TTS_VOICE_LABELS[voice].name}
+                          </p>
+                          <p
+                            className={cn(
+                              "text-sm font-medium",
+                              formData.ttsVoice === voice
+                                ? "text-white/80"
+                                : "text-black/70"
+                            )}
+                          >
+                            {TTS_VOICE_LABELS[voice].description}
+                          </p>
+                        </button>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="neutral"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playVoicePreview(voice);
+                          }}
+                          disabled={isPlayingPreview === voice}
+                          className="ml-3"
+                        >
+                          {isPlayingPreview === voice ? "⏸️" : "🔊"}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
