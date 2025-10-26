@@ -149,11 +149,22 @@ export async function POST(request: NextRequest) {
 
     const updatedUser = result.rows[0];
 
-    // 6. Cache invalidieren
-    revalidateTag("users"); // Invalidiert alle gecachten User-Profile
-    revalidatePath("/dashboard/profile"); // Invalidiert Profil-Page
+    // 6. Session neu laden (Better-Auth)
+    // Session muss neu geladen werden, da user-Tabelle direkt geändert wurde
+    await auth.api.getSession({
+      headers: await headers(),
+      query: {
+        disableCookieCache: true, // Force refresh from database
+      },
+    });
 
-    // 7. Erfolgreiche Response
+    // 7. Cache invalidieren
+    revalidateTag("users"); // User-Profile Cache
+    revalidateTag("lessons"); // Falls Lessons User-Daten enthalten
+    revalidatePath("/dashboard/profile"); // Profil-Page
+    revalidatePath("/lesson/[id]", "page"); // Alle Lesson-Pages (für Avatar-Display)
+
+    // 8. Erfolgreiche Response
     return NextResponse.json({
       success: true,
       user: updatedUser,

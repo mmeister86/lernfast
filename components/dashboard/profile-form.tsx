@@ -112,10 +112,17 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
 
       if (response.ok && data.success) {
         setSuccessMessage("Profil erfolgreich gespeichert! 🎉");
+
+        // 1. Better-Auth Session clientseitig neu laden
+        await authClient.getSession({
+          query: { disableCookieCache: true },
+        });
+
+        // 2. Next.js Cache invalidieren (Server Components)
+        router.refresh();
+
         // Erfolgs-Nachricht nach 3 Sekunden ausblenden
         setTimeout(() => setSuccessMessage(""), 3000);
-        // Seite neu laden, um gecachte Daten zu aktualisieren
-        router.refresh();
       } else {
         setErrors({ general: data.error || "Fehler beim Speichern" });
       }

@@ -5,7 +5,7 @@ import { getCachedLesson } from "@/lib/supabase/queries";
 import { createServiceClient } from "@/lib/supabase/server";
 import { Navbar } from "@/components/navbar";
 import { DialogPhase } from "@/components/learning/dialog-phase";
-import { VoiceDialogPhase } from "@/components/learning/voice-dialog-phase";
+import { VoiceDialogPhase } from "@/components/learning/voice-dialog/voice-dialog-phase";
 import { StoryGeneratorWrapper } from "@/components/learning/story-generator-wrapper";
 import { QuizPhase } from "@/components/learning/quiz-phase";
 import { LearningProgress } from "@/components/learning/learning-progress";

@@ -61,14 +61,16 @@ export interface VoiceAssessmentResult {
 export async function processVoiceInput(
   lessonId: string,
   userId: string,
-  audioBlob: Blob,
+  // Now expect a transcript and metadata instead of raw audio
+  transcript: string,
+  confidence: number | undefined,
   conversationHistory: ConversationEntry[],
   topic: string,
   currentAnswerCount: number
 ): Promise<VoiceDialogResult> {
   try {
     console.log(
-      `🎤 Processing voice input for lesson ${lessonId}, answer ${currentAnswerCount}/5`
+      `🎤 Processing voice transcript for lesson ${lessonId}, answer ${currentAnswerCount}/5`
     );
 
     // Step 0: Lade User-Präferenzen
@@ -76,11 +78,11 @@ export async function processVoiceInput(
     const userVoice = session?.user?.ttsVoice || "nova";
     console.log(`🎙️ Using voice preference: ${userVoice}`);
 
-    // Step 1: Speech-to-Text (Whisper)
-    const userTranscript = await transcribeAudio(audioBlob);
-    console.log(`📝 Transcript: "${userTranscript}"`);
+    // Validate transcript with Zod
+    const transcriptSchema = z.string().max(32768).min(1);
+    const userTranscript = transcriptSchema.parse(transcript);
+    console.log(`📝 Transcript received (${userTranscript.length} chars)`);
 
-    // Step 2: Dialog Processing (LLM)
     const aiResponse = await processDialogResponse(
       lessonId,
       userId,
@@ -90,14 +92,14 @@ export async function processVoiceInput(
       currentAnswerCount
     );
 
-    // Step 3: Text-to-Speech mit User-Präferenz
+    // Step 2: Text-to-Speech mit User-Präferenz
     const { audioUrl: aiAudioUrl } = await generateSpeechAudio(
       aiResponse,
       "de",
-      userVoice // User-Präferenz verwenden
+      userVoice
     );
 
-    // Step 4: Determine if assessment is needed
+    // Step 3: Determine if assessment is needed
     const shouldAssess = currentAnswerCount >= 5;
 
     console.log(`✅ Voice processing complete. Should assess: ${shouldAssess}`);
@@ -271,8 +273,8 @@ AUFGABE:
 - Duze den Nutzer IMMER (verwende "du", "dein", "dir")
 
 STRIKTE REGEL - EXAKT 5 FRAGEN:
-- Der Nutzer hat bisher ${answerNum} von ${maxAns} Fragen beantwortet
-- Du MUSST noch ${maxAns - answerNum} Frage(n) stellen
+- Der Nutzer hat bisher ${answerNum} von ${maxAns} Fragen beantwortet (erste Frage bereits gestellt)
+- Du MUSST noch ${maxAns - answerNum} weitere Frage(n) stellen
 - EINE prägnante Frage pro Message (1-2 Sätze)
 - Keine Multiple-Choice, sondern offene Fragen
 - Baue auf vorherigen Antworten auf
@@ -490,3 +492,74 @@ function delay(ms: number): Promise<void> {
 
 // Error classes moved to lib/voice-dialog-errors.ts
 // due to "use server" file restrictions
+
+// ============================================
+// INITIAL QUESTION GENERATION (Voice Chat)
+// ============================================
+
+/**
+ * Generiert initiale Begrüßung + erste Fachfrage für Voice Chat
+ * Kombiniert beides in einer Nachricht, um direkt mit fachlicher Frage zu starten
+ */
+export async function generateInitialQuestion(
+  lessonId: string,
+  topic: string,
+  userId: string
+): Promise<string> {
+  try {
+    console.log(`🎙️ Generating initial question for topic: ${topic}`);
+
+    const session = await auth.api.getSession({ headers: await headers() });
+    const userProfile = session?.user;
+
+    const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    const response = await openaiClient.chat.completions.create({
+      model: process.env.OPENAI_SELECTION_MODEL || "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: `Du bist ein freundlicher Lern-Coach für das Thema "${topic}".
+
+AUFGABE:
+- Erstelle eine kurze Begrüßung (1-2 Sätze)
+- Stelle DIREKT die erste fachliche Frage zum Thema
+- Kombiniere beides in EINER Nachricht
+- Duze den Nutzer IMMER
+
+BEISPIEL:
+"Hallo! Ich möchte dein Vorwissen zu ${topic} kennenlernen. Lass uns direkt starten: Was weißt du bereits über [Kernkonzept]?"
+
+${
+  userProfile?.age && userProfile.age < 14
+    ? "- Nutze einfache, kindgerechte Sprache"
+    : ""
+}
+${
+  userProfile?.experienceLevel === "beginner"
+    ? "- Stelle eine grundlegende Einstiegsfrage"
+    : ""
+}
+${
+  userProfile?.experienceLevel === "advanced"
+    ? "- Stelle eine anspruchsvollere Frage"
+    : ""
+}
+`,
+        },
+      ],
+      max_tokens: 150,
+      temperature: 0.7,
+    });
+
+    const questionText =
+      response.choices[0]?.message?.content ||
+      `Hallo! Ich möchte dein Vorwissen zu ${topic} kennenlernen. Lass uns direkt starten: Was weißt du bereits über dieses Thema?`;
+
+    console.log(`✅ Generated initial question: "${questionText}"`);
+    return questionText;
+  } catch (error) {
+    console.error("❌ Failed to generate initial question:", error);
+    return `Hallo! Ich möchte dein Vorwissen zu ${topic} kennenlernen. Lass uns direkt starten: Was weißt du bereits über dieses Thema?`;
+  }
+}

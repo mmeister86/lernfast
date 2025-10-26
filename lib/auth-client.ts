@@ -36,6 +36,12 @@ export const authClient = createAuthClient({
         profileUpdatedAt: {
           type: "date",
         },
+        ttsVoice: {
+          type: "string",
+        },
+        avatarPreference: {
+          type: "string",
+        },
       },
     }),
   ],

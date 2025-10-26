@@ -54,10 +54,25 @@ export async function generateSpeechAudio(
   // Voice auswählen (customVoice hat Priorität)
   const voice = customVoice || VOICE_MAP[language] || "nova";
 
+  // Kleine Text-Sanitization vor dem TTS-Call: HTML/Markdown entfernen, Whitespace normalisieren
+  function sanitizeText(input: string): string {
+    if (!input) return "";
+    // Entferne HTML-Tags
+    const noHtml = input.replace(/<[^>]*>/g, "");
+    // Entferne Markdown-Code-Fences/backticks (einfacher Ansatz)
+    const noFences = noHtml.replace(/```[\s\S]*?```/g, "").replace(/`/g, "");
+    // Normalize whitespace
+    const normalized = noFences.replace(/\s+/g, " ").trim();
+    return normalized;
+  }
+
+  const sanitizedText = sanitizeText(text);
+  const inputText = sanitizedText.slice(0, 4096);
+
   console.log(
     `[TTS] Generating speech - language: ${language}, voice: ${voice}${
       customVoice ? " (custom)" : ""
-    }, text length: ${text.length}`
+    }, original length: ${text.length}, sanitized length: ${inputText.length}`
   );
 
   try {
@@ -65,7 +80,7 @@ export async function generateSpeechAudio(
     const mp3Response = await openaiClient.audio.speech.create({
       model: "tts-1",
       voice: voice as "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer",
-      input: text,
+      input: inputText,
     });
 
     console.log("[TTS] Audio received from OpenAI.");

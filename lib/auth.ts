@@ -93,6 +93,13 @@ export const auth = betterAuth({
         input: true, // Erlaubt Input bei Registrierung
         fieldName: "tts_voice",
       },
+      avatarPreference: {
+        type: "string",
+        required: false,
+        defaultValue: "hanne",
+        input: true,
+        fieldName: "avatar_preference",
+      },
     },
     changeEmail: {
       enabled: true,

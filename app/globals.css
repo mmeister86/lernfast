@@ -19,6 +19,22 @@
   }
 }
 
+/* Voice Chat Mikrofon-Button Pulsier-Animation */
+@keyframes pulse-ring {
+  0%,
+  100% {
+    box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 1), 0 0 0 0 rgba(252, 90, 70, 0.7);
+  }
+  50% {
+    box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 1),
+      0 0 0 15px rgba(252, 90, 70, 0);
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 :root {
   --background: oklch(96.47% 0.0401 157.79);
   --secondary-background: oklch(100% 0 0);
