@@ -4,7 +4,7 @@ import { useSession } from "@/lib/auth-client";
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/avatar/user-avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,6 +48,44 @@ export function Navbar() {
 
   const initials = getInitials(session.user.name, session.user.email);
 
+  // [AVATAR-DEBUG] Log session raw customAvatarConfig
+  console.log("[AVATAR-DEBUG] Navbar Session Raw:", {
+    customAvatarConfig: session.user.customAvatarConfig,
+    type: typeof session.user.customAvatarConfig,
+    isString: typeof session.user.customAvatarConfig === "string",
+    isObject:
+      session.user.customAvatarConfig &&
+      typeof session.user.customAvatarConfig === "object",
+    preview:
+      typeof session.user.customAvatarConfig === "string"
+        ? session.user.customAvatarConfig.substring(0, 100)
+        : JSON.stringify(session.user.customAvatarConfig)?.substring(0, 100),
+  });
+
+  // Parse customAvatarConfig from JSON string (Better-Auth stores as string)
+  const avatarConfig = session.user.customAvatarConfig
+    ? (() => {
+        try {
+          // If already an object, use it directly
+          if (typeof session.user.customAvatarConfig === "object") {
+            return session.user.customAvatarConfig;
+          }
+          // If string, parse it
+          return JSON.parse(session.user.customAvatarConfig);
+        } catch (e) {
+          console.error("[AVATAR-DEBUG] Navbar Parse Error:", e);
+          return null;
+        }
+      })()
+    : null;
+
+  // [AVATAR-DEBUG] Log parsed config
+  console.log("[AVATAR-DEBUG] Navbar Parsed Config:", {
+    avatarConfig,
+    type: typeof avatarConfig,
+    keys: avatarConfig ? Object.keys(avatarConfig) : null,
+  });
+
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 ${
@@ -69,15 +107,14 @@ export function Navbar() {
           {/* User Avatar Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger className="focus:outline-none focus:ring-2 focus:ring-main focus:ring-offset-2 rounded-full">
-              <Avatar className="size-10 border-2 border-border shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all cursor-pointer">
-                <AvatarImage
-                  src={session.user.image || undefined}
-                  alt={session.user.name || "User"}
-                />
-                <AvatarFallback className="bg-main text-background font-heading">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                userId={session.user.id}
+                avatarConfig={avatarConfig}
+                fallbackImage={session.user.image || undefined}
+                fallbackInitials={initials}
+                size="sm"
+                className="size-10 shadow-shadow hover:translate-x-boxShadowX hover:translate-y-boxShadowY hover:shadow-none transition-all cursor-pointer"
+              />
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end" className="w-56">

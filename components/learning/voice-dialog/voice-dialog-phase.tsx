@@ -355,6 +355,7 @@ export function VoiceDialogPhase({
           isRecording={recorder.isRecording}
           isSpeaking={state.isSpeaking}
           isCompleting={state.isCompleting}
+          teacherAvatar={avatarPreference}
         />
 
         <VoiceControls

@@ -100,6 +100,25 @@ export const auth = betterAuth({
         input: true,
         fieldName: "avatar_preference",
       },
+      dialogMode: {
+        type: "string",
+        required: false,
+        defaultValue: "text",
+        input: true,
+        fieldName: "dialog_mode",
+      },
+      customAvatarConfig: {
+        type: "string", // Stored as JSONB in DB, but Better-Auth uses string
+        required: false,
+        input: true,
+        fieldName: "custom_avatar_config",
+      },
+      customAvatarUrl: {
+        type: "string",
+        required: false,
+        input: true,
+        fieldName: "custom_avatar_url",
+      },
     },
     changeEmail: {
       enabled: true,

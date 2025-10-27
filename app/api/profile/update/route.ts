@@ -96,6 +96,34 @@ export async function POST(request: NextRequest) {
       values.push(data.dialogMode);
     }
 
+    if (data.customAvatarConfig !== undefined) {
+      // [AVATAR-DEBUG] Log API Route Input
+      console.log("[AVATAR-DEBUG] API Route Input:", {
+        received: data.customAvatarConfig,
+        type: typeof data.customAvatarConfig,
+        keys: data.customAvatarConfig
+          ? Object.keys(data.customAvatarConfig)
+          : null,
+      });
+
+      const stringified = JSON.stringify(data.customAvatarConfig);
+
+      // [AVATAR-DEBUG] Log after stringify
+      console.log("[AVATAR-DEBUG] API Route Stringified:", {
+        stringified,
+        length: stringified.length,
+        preview: stringified.substring(0, 100),
+      });
+
+      updates.push(`custom_avatar_config = $${paramIndex++}`);
+      values.push(stringified);
+    }
+
+    if (data.customAvatarUrl !== undefined) {
+      updates.push(`custom_avatar_url = $${paramIndex++}`);
+      values.push(data.customAvatarUrl);
+    }
+
     // Name Update (direkt in Better Auth user table)
     if (data.name !== undefined) {
       updates.push(`name = $${paramIndex++}`);
@@ -141,6 +169,8 @@ export async function POST(request: NextRequest) {
         tts_voice as "ttsVoice",
         avatar_preference as "avatarPreference",
         dialog_mode as "dialogMode",
+        custom_avatar_config as "customAvatarConfig",
+        custom_avatar_url as "customAvatarUrl",
         "createdAt", "updatedAt"
     `;
 
@@ -154,6 +184,17 @@ export async function POST(request: NextRequest) {
     }
 
     const updatedUser = result.rows[0];
+
+    // [AVATAR-DEBUG] Log database result
+    console.log("[AVATAR-DEBUG] API Route DB Result:", {
+      customAvatarConfig: updatedUser.customAvatarConfig,
+      type: typeof updatedUser.customAvatarConfig,
+      isString: typeof updatedUser.customAvatarConfig === "string",
+      preview:
+        typeof updatedUser.customAvatarConfig === "string"
+          ? updatedUser.customAvatarConfig.substring(0, 100)
+          : JSON.stringify(updatedUser.customAvatarConfig)?.substring(0, 100),
+    });
 
     // 6. Session neu laden (Better-Auth)
     // Session muss neu geladen werden, da user-Tabelle direkt geändert wurde
@@ -220,6 +261,8 @@ export async function GET() {
         tts_voice as "ttsVoice",
         avatar_preference as "avatarPreference",
         dialog_mode as "dialogMode",
+        custom_avatar_config as "customAvatarConfig",
+        custom_avatar_url as "customAvatarUrl",
         "createdAt", "updatedAt"
       FROM "user"
       WHERE id = $1

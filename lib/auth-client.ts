@@ -42,6 +42,17 @@ export const authClient = createAuthClient({
         avatarPreference: {
           type: "string",
         },
+        dialogMode: {
+          type: "string",
+        },
+        customAvatarConfig: {
+          type: "string",
+          required: false,
+        },
+        customAvatarUrl: {
+          type: "string",
+          required: false,
+        },
       },
     }),
   ],

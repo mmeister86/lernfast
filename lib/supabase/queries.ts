@@ -151,6 +151,8 @@ export const getCachedUserProfile = unstable_cache(
         tts_voice,
         avatar_preference,
         dialog_mode,
+        custom_avatar_config,
+        custom_avatar_url,
         createdAt,
         updatedAt
       `
@@ -162,6 +164,19 @@ export const getCachedUserProfile = unstable_cache(
       console.error("getCachedUserProfile error:", error);
       return { data: null, error };
     }
+
+    // [AVATAR-DEBUG] Log raw Supabase data
+    console.log("[AVATAR-DEBUG] Supabase Query Raw:", {
+      custom_avatar_config: data?.custom_avatar_config,
+      type: typeof data?.custom_avatar_config,
+      isObject:
+        data?.custom_avatar_config &&
+        typeof data.custom_avatar_config === "object",
+      isNull: data?.custom_avatar_config === null,
+      keys: data?.custom_avatar_config
+        ? Object.keys(data.custom_avatar_config)
+        : null,
+    });
 
     // Transformiere Daten: Konvertiere snake_case zu camelCase
     const transformedData = data
@@ -182,10 +197,19 @@ export const getCachedUserProfile = unstable_cache(
           ttsVoice: data.tts_voice,
           avatarPreference: data.avatar_preference,
           dialogMode: data.dialog_mode,
+          // Supabase returns JSONB as object, not string - no JSON.parse needed
+          customAvatarConfig: data.custom_avatar_config || undefined,
+          customAvatarUrl: data.custom_avatar_url,
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
         }
       : null;
+
+    // [AVATAR-DEBUG] Log transformed data
+    console.log("[AVATAR-DEBUG] Supabase Query Transformed:", {
+      customAvatarConfig: transformedData?.customAvatarConfig,
+      type: typeof transformedData?.customAvatarConfig,
+    });
 
     return { data: transformedData, error: null };
   },

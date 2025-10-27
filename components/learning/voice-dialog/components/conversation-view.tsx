@@ -15,6 +15,7 @@ interface ConversationViewProps {
   isRecording: boolean;
   isSpeaking: boolean;
   isCompleting: boolean;
+  teacherAvatar?: string;
 }
 
 export function ConversationView({
@@ -23,6 +24,7 @@ export function ConversationView({
   isRecording,
   isSpeaking,
   isCompleting,
+  teacherAvatar,
 }: ConversationViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -55,7 +57,11 @@ export function ConversationView({
             {entry.role === "user" ? (
               <UserMessage content={entry.text} />
             ) : (
-              <AIMessage content={entry.text} audioUrl={entry.audioUrl} />
+              <AIMessage
+                content={entry.text}
+                audioUrl={entry.audioUrl}
+                teacherAvatar={teacherAvatar}
+              />
             )}
           </motion.div>
         ))}

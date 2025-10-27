@@ -4,6 +4,7 @@
  */
 
 import { z } from "zod";
+import { avatarConfigSchema, type AvatarConfig } from "@/lib/avatar.types";
 
 // ============================================
 // Enums & Constants
@@ -116,6 +117,8 @@ export const profileUpdateSchema = z.object({
   ttsVoice: z.enum(TTS_VOICES).optional(),
   avatarPreference: z.enum(AVATAR_PREFERENCES).optional(),
   dialogMode: z.enum(DIALOG_MODES).optional(),
+  customAvatarConfig: avatarConfigSchema.optional(),
+  customAvatarUrl: z.string().url().optional(),
 });
 
 /**
@@ -147,6 +150,9 @@ export interface UserProfile {
   ttsVoice?: TTSVoice; // Optional field
   // Avatar-Einstellungen
   avatarPreference?: AvatarPreference; // Optional field
+  // Custom Avatar (DiceBear Open Peeps)
+  customAvatarConfig?: AvatarConfig; // Optional field
+  customAvatarUrl?: string; // Optional field
   // Dialog Mode Preference
   dialogMode?: DialogMode; // Optional field, defaults to 'text'
 }

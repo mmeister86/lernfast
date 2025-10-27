@@ -68,6 +68,7 @@ export default async function ProfilePage() {
           preferredCardCount: profile.preferredCardCount || 5,
           avatarPreference: profile.avatarPreference || "hanne",
           dialogMode: profile.dialogMode || "text",
+          customAvatarConfig: profile.customAvatarConfig,
         }}
         userId={session.user.id}
       />

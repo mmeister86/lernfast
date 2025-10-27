@@ -34,7 +34,11 @@ import {
 } from "@/lib/profile.types";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { AvatarEditorDialog } from "@/components/avatar-editor/avatar-editor-dialog";
+import { UserAvatar } from "@/components/avatar/user-avatar";
+import { generateAvatarDataUri } from "@/lib/avatar.types";
+import type { AvatarConfig } from "@/lib/avatar.types";
 
 type ProfileFormProps = {
   initialData: {
@@ -49,6 +53,7 @@ type ProfileFormProps = {
     ttsVoice?: string;
     avatarPreference?: string;
     dialogMode?: string;
+    customAvatarConfig?: AvatarConfig;
   };
   userId: string;
 };
@@ -82,6 +87,27 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
   const [newEmail, setNewEmail] = useState("");
   const [isChangingEmail, setIsChangingEmail] = useState(false);
   const [emailChangeMessage, setEmailChangeMessage] = useState("");
+
+  // Avatar Editor State
+  const [isAvatarEditorOpen, setIsAvatarEditorOpen] = useState(false);
+  const [currentAvatarConfig, setCurrentAvatarConfig] =
+    useState<AvatarConfig | null>(null);
+
+  // Load customAvatarConfig from initialData on mount
+  useEffect(() => {
+    // [AVATAR-DEBUG] Log initial config
+    console.log("[AVATAR-DEBUG] ProfileForm Initial Config:", {
+      customAvatarConfig: initialData.customAvatarConfig,
+      type: typeof initialData.customAvatarConfig,
+      keys: initialData.customAvatarConfig
+        ? Object.keys(initialData.customAvatarConfig)
+        : null,
+    });
+
+    if (initialData.customAvatarConfig) {
+      setCurrentAvatarConfig(initialData.customAvatarConfig);
+    }
+  }, [initialData.customAvatarConfig]);
 
   // Form Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
@@ -364,145 +390,161 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
             </CardContent>
           </Card>
 
-          {/* Lernziele */}
+          {/* Lernziele & Lernpräferenzen */}
           <Card className="overflow-hidden">
             <CardHeader className="bg-[#FB7DA8] border-b-4 border-black px-6 py-6 -m-6">
-              <CardTitle className="pl-6 text-2xl">Lernziele</CardTitle>
+              <CardTitle className="pl-6 text-2xl">
+                Lernziele & Präferenzen
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
-              {/* Lernziele Freitext */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="learningGoals"
-                  className="text-lg font-extrabold"
-                >
-                  Was möchtest du lernen?
-                </Label>
-                <Textarea
-                  id="learningGoals"
-                  value={formData.learningGoals || ""}
-                  onChange={(e) =>
-                    setFormData({ ...formData, learningGoals: e.target.value })
-                  }
-                  placeholder="z.B. Ich möchte Python lernen, um Webseiten zu entwickeln..."
-                  rows={4}
-                  maxLength={500}
-                />
-                <p className="text-sm font-medium text-foreground/60">
-                  {formData.learningGoals?.length || 0}/500 Zeichen
-                </p>
-                {errors.learningGoals && (
-                  <p className="text-sm font-medium text-[#FC5A46]">
-                    {errors.learningGoals}
-                  </p>
-                )}
-              </div>
+              {/* Lernziele Bereich */}
+              <div className="space-y-4">
+                <div className="bg-[#FFC667] border-4 border-black rounded-[15px] p-4">
+                  <h3 className="text-xl font-extrabold text-black mb-4">
+                    🎯 Lernziele
+                  </h3>
 
-              {/* Erfahrungslevel */}
-              <div className="space-y-2">
-                <Label className="text-lg font-extrabold">
-                  Dein Erfahrungslevel
-                </Label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {EXPERIENCE_LEVELS.map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() =>
-                        setFormData({ ...formData, experienceLevel: level })
-                      }
-                      className={cn(
-                        "px-6 py-4 font-extrabold rounded-[15px] border-4 border-black transition-all duration-100 text-left",
-                        formData.experienceLevel === level
-                          ? "bg-[#FB7DA8] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-[2px] translate-y-[2px]"
-                          : "bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]"
-                      )}
+                  {/* Lernziele Freitext */}
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="learningGoals"
+                      className="text-lg font-extrabold"
                     >
-                      <div className="text-lg">
-                        {EXPERIENCE_LEVEL_LABELS[level]}
-                      </div>
-                      <div className="text-sm font-medium text-foreground/70 mt-1">
-                        {level === "beginner" && "Ich fange gerade erst an"}
-                        {level === "intermediate" && "Ich habe Grundkenntnisse"}
-                        {level === "advanced" && "Ich bin sehr erfahren"}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Lernpräferenzen */}
-          <Card className="overflow-hidden">
-            <CardHeader className="bg-[#0CBCD7] border-b-4 border-black px-6 py-6 -m-6">
-              <CardTitle className="pl-6 text-2xl">Lernpräferenzen</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              {/* Schwierigkeitsgrad */}
-              <div className="space-y-2">
-                <Label className="text-lg font-extrabold">
-                  Bevorzugter Schwierigkeitsgrad
-                </Label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {DIFFICULTY_LEVELS.map((difficulty) => (
-                    <button
-                      key={difficulty}
-                      type="button"
-                      onClick={() =>
+                      Was möchtest du lernen?
+                    </Label>
+                    <Textarea
+                      id="learningGoals"
+                      value={formData.learningGoals || ""}
+                      onChange={(e) =>
                         setFormData({
                           ...formData,
-                          preferredDifficulty: difficulty,
+                          learningGoals: e.target.value,
                         })
                       }
-                      className={cn(
-                        "px-6 py-4 font-extrabold rounded-[15px] border-4 border-black transition-all duration-100",
-                        formData.preferredDifficulty === difficulty
-                          ? "bg-[#0CBCD7] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-[2px] translate-y-[2px]"
-                          : "bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]"
-                      )}
-                    >
-                      {DIFFICULTY_LEVEL_LABELS[difficulty]}
-                    </button>
-                  ))}
+                      placeholder="z.B. Ich möchte Python lernen, um Webseiten zu entwickeln..."
+                      rows={4}
+                      maxLength={500}
+                    />
+                    <p className="text-sm font-medium text-foreground/60">
+                      {formData.learningGoals?.length || 0}/500 Zeichen
+                    </p>
+                    {errors.learningGoals && (
+                      <p className="text-sm font-medium text-[#FC5A46]">
+                        {errors.learningGoals}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Erfahrungslevel */}
+                  <div className="space-y-2 mt-4">
+                    <Label className="text-lg font-extrabold">
+                      Dein Erfahrungslevel
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {EXPERIENCE_LEVELS.map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() =>
+                            setFormData({ ...formData, experienceLevel: level })
+                          }
+                          className={cn(
+                            "px-6 py-4 font-extrabold rounded-[15px] border-4 border-black transition-all duration-100 text-left",
+                            formData.experienceLevel === level
+                              ? "bg-[#FB7DA8] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-[2px] translate-y-[2px]"
+                              : "bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]"
+                          )}
+                        >
+                          <div className="text-lg">
+                            {EXPERIENCE_LEVEL_LABELS[level]}
+                          </div>
+                          <div className="text-sm font-medium text-foreground/70 mt-1">
+                            {level === "beginner" && "Ich fange gerade erst an"}
+                            {level === "intermediate" &&
+                              "Ich habe Grundkenntnisse"}
+                            {level === "advanced" && "Ich bin sehr erfahren"}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Anzahl Karten pro Session */}
-              <div className="space-y-2">
-                <Label
-                  htmlFor="preferredCardCount"
-                  className="text-lg font-extrabold"
-                >
-                  Karten pro Lernsession
-                </Label>
-                <div className="flex items-center gap-4">
-                  <Input
-                    id="preferredCardCount"
-                    type="number"
-                    min="3"
-                    max="20"
-                    value={formData.preferredCardCount || 5}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        preferredCardCount: parseInt(e.target.value) || 5,
-                      })
-                    }
-                    className="w-24"
-                  />
-                  <span className="font-medium text-foreground/70">
-                    (3-20 Karten)
-                  </span>
+              {/* Lernpräferenzen Bereich */}
+              <div className="space-y-4">
+                <div className="bg-[#0CBCD7] border-4 border-black rounded-[15px] p-4">
+                  <h3 className="text-xl font-extrabold text-black mb-4">
+                    ⚙️ Lernpräferenzen
+                  </h3>
+
+                  {/* Schwierigkeitsgrad */}
+                  <div className="space-y-2">
+                    <Label className="text-lg font-extrabold">
+                      Bevorzugter Schwierigkeitsgrad
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {DIFFICULTY_LEVELS.map((difficulty) => (
+                        <button
+                          key={difficulty}
+                          type="button"
+                          onClick={() =>
+                            setFormData({
+                              ...formData,
+                              preferredDifficulty: difficulty,
+                            })
+                          }
+                          className={cn(
+                            "px-6 py-4 font-extrabold rounded-[15px] border-4 border-black transition-all duration-100",
+                            formData.preferredDifficulty === difficulty
+                              ? "bg-[#0CBCD7] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-[2px] translate-y-[2px]"
+                              : "bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]"
+                          )}
+                        >
+                          {DIFFICULTY_LEVEL_LABELS[difficulty]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Anzahl Karten pro Session */}
+                  <div className="space-y-2 mt-4">
+                    <Label
+                      htmlFor="preferredCardCount"
+                      className="text-lg font-extrabold"
+                    >
+                      Karten pro Lernsession
+                    </Label>
+                    <div className="flex items-center gap-4">
+                      <Input
+                        id="preferredCardCount"
+                        type="number"
+                        min="3"
+                        max="20"
+                        value={formData.preferredCardCount || 5}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            preferredCardCount: parseInt(e.target.value) || 5,
+                          })
+                        }
+                        className="w-24"
+                      />
+                      <span className="font-medium text-foreground/70">
+                        (3-20 Karten)
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium text-foreground/60">
+                      Bestimmt, wie viele Karten pro Session generiert werden
+                    </p>
+                    {errors.preferredCardCount && (
+                      <p className="text-sm font-medium text-[#FC5A46]">
+                        {errors.preferredCardCount}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <p className="text-sm font-medium text-foreground/60">
-                  Bestimmt, wie viele Karten pro Session generiert werden
-                </p>
-                {errors.preferredCardCount && (
-                  <p className="text-sm font-medium text-[#FC5A46]">
-                    {errors.preferredCardCount}
-                  </p>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -715,6 +757,52 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
             </CardContent>
           </Card>
 
+          {/* Custom Avatar */}
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-[#FB7DA8] border-b-4 border-black px-6 py-6 -m-6">
+              <CardTitle className="pl-6 text-2xl text-black">
+                Dein Avatar
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-lg font-extrabold">
+                    Avatar erstellen und anpassen
+                  </Label>
+                  <p className="text-sm font-medium text-foreground/60">
+                    Erstelle deinen eigenen Avatar, der in der Navbar und im
+                    Chat angezeigt wird.
+                  </p>
+                </div>
+
+                {/* Avatar Preview */}
+                <div className="flex items-center gap-6">
+                  {currentAvatarConfig ? (
+                    <img
+                      src={generateAvatarDataUri(currentAvatarConfig, 80, userId)}
+                      alt="Dein Avatar"
+                      className="w-20 h-20 rounded-[15px] border-4 border-black object-cover"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-[15px] border-4 border-black bg-gray-50 flex items-center justify-center">
+                      <span className="text-2xl">👤</span>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={() => setIsAvatarEditorOpen(true)}
+                    variant="default"
+                  >
+                    {currentAvatarConfig
+                      ? "Avatar bearbeiten"
+                      : "Avatar erstellen"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Submit Button - Spans full width on large screens */}
           <div className="col-span-1 lg:col-span-2">
             <Button
@@ -727,6 +815,72 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
             </Button>
           </div>
         </form>
+
+        {/* Avatar Editor Dialog */}
+        <AvatarEditorDialog
+          open={isAvatarEditorOpen}
+          onOpenChange={setIsAvatarEditorOpen}
+          initialConfig={currentAvatarConfig}
+          onSave={async (config: AvatarConfig) => {
+            try {
+              // [AVATAR-DEBUG] Log save payload
+              console.log("[AVATAR-DEBUG] ProfileForm Save Payload:", {
+                config,
+                configKeys: Object.keys(config),
+                stringified: JSON.stringify({ customAvatarConfig: config }),
+              });
+
+              setCurrentAvatarConfig(config);
+
+              // Save to backend
+              const response = await fetch("/api/profile/update", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ customAvatarConfig: config }),
+              });
+
+              // [AVATAR-DEBUG] Log response status
+              console.log("[AVATAR-DEBUG] ProfileForm Save Response Status:", {
+                ok: response.ok,
+                status: response.status,
+                statusText: response.statusText,
+              });
+
+              if (!response.ok) {
+                const error = await response.json();
+                console.error("[AVATAR-DEBUG] ProfileForm Save Error:", error);
+                throw new Error(error.error || "Failed to save avatar");
+              }
+
+              const responseData = await response.json();
+
+              // [AVATAR-DEBUG] Log response data
+              console.log("[AVATAR-DEBUG] ProfileForm Save Response Data:", {
+                customAvatarConfig: responseData.user?.customAvatarConfig,
+                type: typeof responseData.user?.customAvatarConfig,
+              });
+
+              // 1. Better-Auth Session clientseitig neu laden
+              await authClient.getSession({
+                query: { disableCookieCache: true },
+              });
+
+              // 2. Next.js Cache invalidieren (Server Components)
+              router.refresh();
+
+              setSuccessMessage("Avatar erfolgreich gespeichert!");
+              setTimeout(() => setSuccessMessage(""), 3000);
+            } catch (error) {
+              console.error("Avatar save error:", error);
+              setErrors({
+                general:
+                  error instanceof Error
+                    ? error.message
+                    : "Fehler beim Speichern des Avatars",
+              });
+            }
+          }}
+        />
       </div>
     </div>
   );
