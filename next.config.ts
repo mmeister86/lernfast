@@ -11,6 +11,11 @@ const nextConfig: NextConfig = {
       dynamic: 30, // 30 Sekunden für dynamische Pages (z.B. Dashboard)
       static: 180, // 3 Minuten für statische Pages
     },
+    // Server Actions Body Size Limit erhöht (Standard: 1mb)
+    // Voice Dialog: Verhindert 413-Fehler bei langen Konversationen
+    serverActions: {
+      bodySizeLimit: "5mb",
+    },
   },
 
   // Webpack-Override für Better-Auth Dependency

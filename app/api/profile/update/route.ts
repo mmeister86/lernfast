@@ -91,6 +91,11 @@ export async function POST(request: NextRequest) {
       values.push(data.avatarPreference);
     }
 
+    if (data.dialogMode !== undefined) {
+      updates.push(`dialog_mode = $${paramIndex++}`);
+      values.push(data.dialogMode);
+    }
+
     // Name Update (direkt in Better Auth user table)
     if (data.name !== undefined) {
       updates.push(`name = $${paramIndex++}`);
@@ -135,6 +140,7 @@ export async function POST(request: NextRequest) {
         profile_updated_at as "profileUpdatedAt",
         tts_voice as "ttsVoice",
         avatar_preference as "avatarPreference",
+        dialog_mode as "dialogMode",
         "createdAt", "updatedAt"
     `;
 
@@ -213,6 +219,7 @@ export async function GET() {
         profile_updated_at as "profileUpdatedAt",
         tts_voice as "ttsVoice",
         avatar_preference as "avatarPreference",
+        dialog_mode as "dialogMode",
         "createdAt", "updatedAt"
       FROM "user"
       WHERE id = $1

@@ -150,6 +150,7 @@ export const getCachedUserProfile = unstable_cache(
         profile_updated_at,
         tts_voice,
         avatar_preference,
+        dialog_mode,
         createdAt,
         updatedAt
       `
@@ -180,6 +181,7 @@ export const getCachedUserProfile = unstable_cache(
           profileUpdatedAt: data.profile_updated_at,
           ttsVoice: data.tts_voice,
           avatarPreference: data.avatar_preference,
+          dialogMode: data.dialog_mode,
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
         }

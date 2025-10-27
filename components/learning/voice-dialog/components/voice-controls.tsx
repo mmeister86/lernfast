@@ -4,9 +4,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AVATAR_LABELS, type AvatarPreference } from "@/lib/profile.types";
 import { MAX_DIALOG_ANSWERS } from "../types";
-import { useState } from "react";
-
-// VoiceControls now displays live transcript and allows user correction before send
 
 interface VoiceControlsProps {
   avatarPreference: AvatarPreference;
@@ -15,11 +12,6 @@ interface VoiceControlsProps {
   isSpeaking: boolean;
   userAnswerCount: number;
   onToggleRecording: () => void;
-  // Wired from recorder hook
-  transcript: string;
-  setTranscript: (s: string) => void;
-  confidence?: number;
-  onSendTranscript: () => Promise<void> | void;
 }
 
 export function VoiceControls({
@@ -29,19 +21,8 @@ export function VoiceControls({
   isSpeaking,
   userAnswerCount,
   onToggleRecording,
-  transcript,
-  setTranscript,
-  confidence,
-  onSendTranscript,
 }: VoiceControlsProps) {
   const avatarInfo = AVATAR_LABELS[avatarPreference];
-  const [isSending, setIsSending] = useState(false);
-
-  // Note: The parent component will pass a handler via onToggleRecording that
-  // triggers recording. When recording stops, the hook will call into the
-  // parent's handler (which ultimately calls processVoiceInput). To allow
-  // user correction we expose a small text area here; parent should wire
-  // the final transcript when sending.
 
   return (
     <div className="flex flex-col gap-6 lg:sticky lg:top-6 lg:self-start">
@@ -91,43 +72,6 @@ export function VoiceControls({
             ? "Dialog abgeschlossen ✓"
             : "Klick zum Sprechen"}
         </p>
-
-        {/* Transcript preview & manual edit */}
-        <div className="w-full">
-          <label className="block text-sm font-medium mb-2">
-            Deine Antwort
-          </label>
-          <textarea
-            value={transcript}
-            onChange={(e) => setTranscript(e.target.value)}
-            placeholder={
-              isRecording
-                ? "Spreche jetzt..."
-                : "Hier kannst du deine Antwort bearbeiten"
-            }
-            className="w-full h-24 p-3 rounded-[15px] border-4 border-black font-medium"
-          />
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-xs text-foreground/60">
-              Confidence:{" "}
-              {confidence ? `${Math.round(confidence * 100)}%` : "—"}
-            </span>
-            <Button
-              onClick={async () => {
-                setIsSending(true);
-                try {
-                  await onSendTranscript();
-                } finally {
-                  setIsSending(false);
-                }
-              }}
-              size="sm"
-              disabled={isSending || isProcessing}
-            >
-              {isSending ? "Sende…" : "Senden"}
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   );

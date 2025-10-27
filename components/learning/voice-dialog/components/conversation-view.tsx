@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useEffect, useRef } from "react";
 import { ConversationEntry } from "../types";
 import { UserMessage } from "../chat-ui/user-message";
 import { AIMessage } from "../chat-ui/ai-message";
@@ -23,9 +24,16 @@ export function ConversationView({
   isSpeaking,
   isCompleting,
 }: ConversationViewProps) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to newest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [conversationHistory]);
+
   return (
     <div className="space-y-4">
-      <div className="bg-white border-4 border-black rounded-[15px] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 min-h-[680px] max-h-[1020px] overflow-y-auto">
+      <div className="bg-white border-4 border-black rounded-[15px] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-6 h-[600px] overflow-y-auto">
         {conversationHistory.length === 0 && (
           <div className="flex items-center justify-center h-full">
             <p className="text-lg font-medium text-gray-400">
@@ -56,6 +64,9 @@ export function ConversationView({
         {isProcessing && !isCompleting && <TypingIndicator />}
         {isRecording && <RecordingIndicator />}
         {isSpeaking && <SpeakingIndicator />}
+
+        {/* Scroll anchor */}
+        <div ref={messagesEndRef} />
       </div>
     </div>
   );

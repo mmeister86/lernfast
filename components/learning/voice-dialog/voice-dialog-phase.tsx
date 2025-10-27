@@ -57,12 +57,22 @@ export function VoiceDialogPhase({
         "@/app/lesson/[id]/actions/actions-voice-dialog"
       );
 
+      // Strip audioUrl from history before sending to server (prevents 1MB body limit error)
+      const historyForServer = state.conversationHistory.map(
+        ({ role, text, content }) => ({
+          role,
+          text,
+          content,
+          timestamp: new Date().toISOString(),
+        })
+      );
+
       const processed: VoiceDialogResult = await processVoiceInput(
         lessonId,
         userId,
         result.transcript,
         result.confidence,
-        state.conversationHistory,
+        historyForServer,
         topic,
         newAnswerCount
       );
@@ -354,18 +364,6 @@ export function VoiceDialogPhase({
           isSpeaking={state.isSpeaking}
           userAnswerCount={state.userAnswerCount}
           onToggleRecording={recorder.toggleRecording}
-          transcript={recorder.transcript}
-          setTranscript={recorder.setTranscript}
-          confidence={recorder.confidence}
-          onSendTranscript={async () => {
-            // Send current transcript to processing pipeline
-            state.setIsProcessing(true);
-            await handleVoiceInput({
-              transcript: recorder.transcript,
-              confidence: recorder.confidence,
-            });
-            state.setIsProcessing(false);
-          }}
         />
       </div>
 

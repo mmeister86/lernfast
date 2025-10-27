@@ -60,6 +60,9 @@ export default async function LessonPage({ params }: PageProps) {
   // Interactive Learning System
   const currentPhase = lessonWithFlashcards.current_phase as LearningPhase;
 
+  // Dialog Mode Preference (text oder voice)
+  const userDialogMode = (session.user as any)?.dialogMode || "text";
+
   // Lade Score für Completion Screen
   let score: LessonScore | null = null;
   if (currentPhase === "completed") {
@@ -131,9 +134,9 @@ export default async function LessonPage({ params }: PageProps) {
           {/* Phase Progress Indicator */}
           <LearningProgress currentPhase={currentPhase} lessonId={id} />
 
-          {/* Dialog Phase - Voice oder Text basierend auf Feature Flag */}
+          {/* Dialog Phase - Voice oder Text basierend auf User-Präferenz */}
           {currentPhase === "dialog" &&
-            (process.env.NEXT_PUBLIC_ENABLE_VOICE_DIALOG === "true" ? (
+            (userDialogMode === "voice" ? (
               <VoiceDialogPhase
                 lessonId={id}
                 userId={session.user.id}

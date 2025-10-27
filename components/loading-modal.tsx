@@ -20,7 +20,7 @@ interface LoadingModalProps {
  */
 const phaseMessages: Record<LoadingPhase, string[]> = {
   suggesting: [
-    "Espresso-Maschine sucht passende Themen...",
+    "Stehe an der Espresso-Maschine und suche passende Themen...",
     "☕ Hmm, welche Aspekte könnten interessant sein?",
     "Themenvielfalt wird durchforstet...",
     "Kreative Vorschläge werden entwickelt...",

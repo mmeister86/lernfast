@@ -16,10 +16,12 @@ export const EXPERIENCE_LEVELS = [
   "advanced",
 ] as const;
 export const DIFFICULTY_LEVELS = ["easy", "medium", "hard"] as const;
+export const DIALOG_MODES = ["text", "voice"] as const;
 
 export type Language = (typeof LANGUAGES)[number];
 export type ExperienceLevel = (typeof EXPERIENCE_LEVELS)[number];
 export type DifficultyLevel = (typeof DIFFICULTY_LEVELS)[number];
+export type DialogMode = (typeof DIALOG_MODES)[number];
 
 // TTS Voice Types
 export const TTS_VOICES = [
@@ -67,6 +69,15 @@ export const AVATAR_LABELS: Record<
   tariq: { name: "Tariq", description: "Dynamisch und begeisternd" },
 };
 
+// Dialog Mode Labels
+export const DIALOG_MODE_LABELS: Record<
+  DialogMode,
+  { name: string; description: string }
+> = {
+  text: { name: "Text-Chat", description: "Schreibe deine Antworten" },
+  voice: { name: "Voice-Chat", description: "Sprich mit dem Avatar" },
+};
+
 // ============================================
 // Zod Schema für Validation
 // ============================================
@@ -104,6 +115,7 @@ export const profileUpdateSchema = z.object({
     .optional(),
   ttsVoice: z.enum(TTS_VOICES).optional(),
   avatarPreference: z.enum(AVATAR_PREFERENCES).optional(),
+  dialogMode: z.enum(DIALOG_MODES).optional(),
 });
 
 /**
@@ -135,6 +147,8 @@ export interface UserProfile {
   ttsVoice?: TTSVoice; // Optional field
   // Avatar-Einstellungen
   avatarPreference?: AvatarPreference; // Optional field
+  // Dialog Mode Preference
+  dialogMode?: DialogMode; // Optional field, defaults to 'text'
 }
 
 // ============================================

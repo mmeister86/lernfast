@@ -44,6 +44,7 @@ export default async function ProfilePage() {
             preferredDifficulty: "medium",
             preferredCardCount: 5,
             avatarPreference: "hanne",
+            dialogMode: "text",
           }}
           userId={session.user.id}
         />
@@ -66,6 +67,7 @@ export default async function ProfilePage() {
           preferredDifficulty: profile.preferredDifficulty || "medium",
           preferredCardCount: profile.preferredCardCount || 5,
           avatarPreference: profile.avatarPreference || "hanne",
+          dialogMode: profile.dialogMode || "text",
         }}
         userId={session.user.id}
       />

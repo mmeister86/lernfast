@@ -16,6 +16,8 @@ import { authClient } from "@/lib/auth-client";
 import {
   AVATAR_LABELS,
   AVATAR_PREFERENCES,
+  DIALOG_MODE_LABELS,
+  DIALOG_MODES,
   DIFFICULTY_LEVEL_LABELS,
   DIFFICULTY_LEVELS,
   EXPERIENCE_LEVEL_LABELS,
@@ -26,6 +28,7 @@ import {
   TTS_VOICE_LABELS,
   profileUpdateSchema,
   type AvatarPreference,
+  type DialogMode,
   type ProfileUpdatePayload,
   type TTSVoice,
 } from "@/lib/profile.types";
@@ -45,6 +48,7 @@ type ProfileFormProps = {
     preferredCardCount?: number;
     ttsVoice?: string;
     avatarPreference?: string;
+    dialogMode?: string;
   };
   userId: string;
 };
@@ -64,6 +68,7 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
     ttsVoice: (initialData.ttsVoice as TTSVoice) || "nova",
     avatarPreference:
       (initialData.avatarPreference as AvatarPreference) || "hanne",
+    dialogMode: (initialData.dialogMode as DialogMode) || "text",
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -180,8 +185,8 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-3xl mx-auto space-y-8">
+    <div className="min-h-screen bg-background mt-16 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="space-y-2">
           <Button
@@ -217,11 +222,14 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
           </div>
         )}
 
-        {/* Profile Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Profile Form - Grid Layout: 1 column on mobile, 2 columns on large screens */}
+        <form
+          onSubmit={handleSubmit}
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+        >
           {/* Persönliche Daten */}
           <Card className="overflow-hidden">
-            <CardHeader className="bg-[#FFC667] border-b-4 border-black px-6 py-6 -m-6 mb-6">
+            <CardHeader className="bg-[#FFC667] border-b-4 border-black px-6 py-6 -m-6 ">
               <CardTitle className="pl-6 text-2xl">Persönliche Daten</CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
@@ -358,7 +366,7 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
 
           {/* Lernziele */}
           <Card className="overflow-hidden">
-            <CardHeader className="bg-[#FB7DA8] border-b-4 border-black px-6 py-6 -m-6 mb-6">
+            <CardHeader className="bg-[#FB7DA8] border-b-4 border-black px-6 py-6 -m-6">
               <CardTitle className="pl-6 text-2xl">Lernziele</CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
@@ -427,7 +435,7 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
 
           {/* Lernpräferenzen */}
           <Card className="overflow-hidden">
-            <CardHeader className="bg-[#0CBCD7] border-b-4 border-black px-6 py-6 -m-6 mb-6">
+            <CardHeader className="bg-[#0CBCD7] border-b-4 border-black px-6 py-6 -m-6">
               <CardTitle className="pl-6 text-2xl">Lernpräferenzen</CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
@@ -499,9 +507,73 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
             </CardContent>
           </Card>
 
+          {/* Dialog-Modus */}
+          <Card className="overflow-hidden">
+            <CardHeader className="bg-[#662CB7] border-b-4 border-black px-6 py-6 -m-6">
+              <CardTitle className="pl-6 text-2xl text-white">
+                💬 Dialog-Modus
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-2">
+                <Label className="text-lg font-extrabold">
+                  Wie möchtest du in der Dialog-Phase antworten?
+                </Label>
+                <p className="text-sm font-medium text-foreground/60 mb-4">
+                  Wähle zwischen Text-Chat (Tippen) oder Voice-Chat (Sprechen
+                  mit Avatar).
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {DIALOG_MODES.map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() =>
+                        setFormData({ ...formData, dialogMode: mode })
+                      }
+                      className={cn(
+                        "p-6 rounded-[15px] border-4 border-black transition-all duration-100",
+                        formData.dialogMode === mode
+                          ? "bg-[#662CB7] text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] translate-x-[2px] translate-y-[2px]"
+                          : "bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px]"
+                      )}
+                    >
+                      <div className="text-center">
+                        <p className="text-2xl mb-2">
+                          {mode === "text" ? "✍️" : "🎤"}
+                        </p>
+                        <p
+                          className={cn(
+                            "font-extrabold text-lg mb-1",
+                            formData.dialogMode === mode
+                              ? "text-white"
+                              : "text-black"
+                          )}
+                        >
+                          {DIALOG_MODE_LABELS[mode].name}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-sm font-medium",
+                            formData.dialogMode === mode
+                              ? "text-white/80"
+                              : "text-black/70"
+                          )}
+                        >
+                          {DIALOG_MODE_LABELS[mode].description}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Voice-Einstellungen */}
           <Card className="overflow-hidden">
-            <CardHeader className="bg-[#662CB7] border-b-4 border-black px-6 py-6 -m-6 mb-6">
+            <CardHeader className="bg-[#662CB7] border-b-4 border-black px-6 py-6 -m-6">
               <CardTitle className="pl-6 text-2xl text-white">
                 Stimmen-Einstellungen
               </CardTitle>
@@ -580,7 +652,7 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
 
           {/* Avatar-Einstellungen */}
           <Card className="overflow-hidden">
-            <CardHeader className="bg-[#00D9BE] border-b-4 border-black px-6 py-6 -m-6 mb-6">
+            <CardHeader className="bg-[#00D9BE] border-b-4 border-black px-6 py-6 -m-6">
               <CardTitle className="pl-6 text-2xl text-black">
                 Avatar-Einstellungen
               </CardTitle>
@@ -643,15 +715,17 @@ export function ProfileForm({ initialData, userId }: ProfileFormProps) {
             </CardContent>
           </Card>
 
-          {/* Submit Button */}
-          <Button
-            type="submit"
-            disabled={isLoading}
-            className="w-full"
-            size="lg"
-          >
-            {isLoading ? "Speichern..." : "Profil speichern"}
-          </Button>
+          {/* Submit Button - Spans full width on large screens */}
+          <div className="col-span-1 lg:col-span-2">
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full"
+              size="lg"
+            >
+              {isLoading ? "Speichern..." : "Profil speichern"}
+            </Button>
+          </div>
         </form>
       </div>
     </div>
